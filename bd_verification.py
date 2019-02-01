@@ -9,7 +9,10 @@ def verify_birthday(date):
     age = divmod(((today - bd).total_seconds()), 31556926)[0]  # Gets the time difference in seconds then converts it
     # in years
     if age < 18:
-        raise Underaged("You must be 18 or older to access this server")
+        raise Underaged("You must be 18 or older to access this server.\n"
+                        "If this is an error, you can re-join the server")
+    elif age > 60:
+        raise ValueError
 
 
 class Underaged(Exception):
