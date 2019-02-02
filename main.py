@@ -58,9 +58,9 @@ async def on_message(message):
                         await log_channel.send(messages.USER_IS_UNDERAGED.format(
                             message))
 
-    except AttributeError as e:
+    except Exception as e:
         e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(e.args)
-        await message.channel.send(e_mess + traceback.format_tb(e.__traceback__)[0] + "```")
+        await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
 
 
 async def create_role(guild, name, color):
@@ -198,8 +198,10 @@ async def on_raw_reaction_add(payload):
                                            " yourself a new one")
                 else:
                     await user.add_roles(role)
-            except ValueError as e:
-                return print(e.args)
+            except Exception as e:
+                e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(
+                    e.args)
+                return await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
 
 
 @bot.event
@@ -218,8 +220,10 @@ async def on_raw_reaction_remove(payload):
                     return None
                 else:
                     return await user.remove_roles(role)
-            except ValueError as e:
-                return print(e.args)
+            except Exception as e:
+                e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(
+                    e.args)
+                return await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
 
 
 def main():
