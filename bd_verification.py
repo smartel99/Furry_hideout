@@ -17,7 +17,7 @@ def verify_birthday(date):
 
 class Underaged(Exception):
     def __init__(self, message):
-        self.message = "User must be over 18"
+        self.message = message
 
     def __str__(self):
         return self.message

@@ -6,24 +6,12 @@ from discord.ext import commands
 import Token
 import bd_verification
 import messages
+import roles
 
 bot = commands.Bot(command_prefix='f.',
                    description='The official bot of the Furry Hideout!',
                    pm_help=True,
                    command_not_found="Command not found")
-
-
-# gender_message = bot.get_channel(540695612857909280).get_message(540698835098271780)
-#
-# orientation_message = discord.utils.get(
-#     bot.get_all_channels(),
-#     id=540695612857909280).\
-#     get_message(540698835098271780)
-#
-# preference_message = discord.utils.get(
-#     bot.get_all_channels(),
-#     id=540695612857909280).\
-#     get_message(540698835098271780)
 
 
 @bot.event
@@ -38,12 +26,20 @@ async def on_member_join(member):
     await member.send(messages.WELCOME_MESSAGE)
 
 
+async def create_invite_with_exc_msg(e, channel):
+    il = await channel.create_invite(max_uses=1, max_age=86400, unique=True, reason="Needed to reinvite user")
+    embed = discord.Embed(color=0xff0000)
+    embed.add_field(name=e, value=il)
+    return embed
+
+
 @bot.event
 async def on_message(message):
     try:
         if not message.author.bot:
             role = discord.utils.get(message.guild.roles, name="verified")
             if message.channel.name == "verification":
+                await message.delete()
                 if role not in message.author.roles:
                     log_channel = discord.utils.get(
                         discord.utils.get(bot.guilds, name="bot fuck").channels,
@@ -51,17 +47,17 @@ async def on_message(message):
                     try:
                         bd_verification.verify_birthday(message.content)
                         await message.author.add_roles(role)
-                        await message.delete()
                         await message.author.send(messages.USER_IS_VERIFIED)
-                        await log_channel.send(messages.GIVEN_VERIFIED_TO_USER.format(message.author))
+                        await log_channel.send(messages.GIVEN_VERIFIED_TO_USER.format(message))
                     except ValueError:
                         await message.channel.send(messages.INPUT_NOT_VALID.format("date"))
                     except bd_verification.Underaged as e:
-                        await message.author.send(e)
+                        await message.author.send(embed=await create_invite_with_exc_msg(e, message.channel))
+                        await message.channel.guild.kick(message.author,
+                                                         reason=messages.USER_IS_UNDERAGED.format(message))
                         await log_channel.send(messages.USER_IS_UNDERAGED.format(
                             message))
-                        await message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
-                            message.content))
+
     except AttributeError as e:
         e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(e.args)
         await message.channel.send(e_mess + traceback.format_tb(e.__traceback__)[0] + "```")
@@ -87,7 +83,8 @@ Gender
 3. Gender Fluid
 4. Transgender
 
-< To give yourself your desired role, select the corresponding emoji bellow > ```""":
+< To give yourself your desired role, select the corresponding emoji bellow > 
+/* To remove a role you have, remove the corresponding reaction *```""":
         if emoji == '1⃣':
             r = discord.utils.get(guild.roles, name='Male')
             if not r:
@@ -121,7 +118,8 @@ Orientation
 4.  Pansexual
 5.  Demisexual
 
-< To give yourself your desired role, select the corresponding emoji bellow >```""":
+< To give yourself your desired role, select the corresponding emoji bellow >
+/* To remove a role you have, remove the corresponding reaction *```""":
         if emoji == '1⃣':
             r = discord.utils.get(guild.roles, name='Heterosexual')
             if not r:
@@ -157,7 +155,8 @@ Preference
 2.  Submissive
 3.  Switch
 
-< To give yourself your desired role, select the corresponding emoji bellow > ```""":
+< To give yourself your desired role, select the corresponding emoji bellow > 
+/* To remove a role you have, remove the corresponding reaction *```""":
         if emoji == '1⃣':
             r = discord.utils.get(guild.roles, name='Dominant')
             if not r:
@@ -184,16 +183,43 @@ async def on_raw_reaction_add(payload):
     if bot.get_channel(payload.channel_id).name == "get-roles":
         message = await bot.get_channel(payload.channel_id).get_message(payload.message_id)
         user = discord.utils.get(bot.get_all_members(), id=payload.user_id)
-        try:
-            role = await get_role_from_reaction(message,
-                                                payload.emoji.name)
-            if not role:
-                return await bot.get_channel(payload.channel_id).send(
-                    "There was an error, please contact an admin")
-            else:
-                await user.add_roles(role)
-        except ValueError as e:
-            return print(e.args)
+        if not user.bot:
+            try:
+                role = await get_role_from_reaction(message,
+                                                    payload.emoji.name)
+                if not role:
+                    return await bot.get_channel(payload.channel_id).send(
+                        "There was an error, please contact an admin")
+                elif role in user.roles:
+                    return await user.send("You already have that role, this should not be happening")
+                elif roles.user_has_role_in_same_category(user, role):
+                    await message.remove_reaction(payload.emoji, user)
+                    return await user.send("You already have a role in that category, please remove it before assigning"
+                                           " yourself a new one")
+                else:
+                    await user.add_roles(role)
+            except ValueError as e:
+                return print(e.args)
+
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    if bot.get_channel(payload.channel_id).name == "get-roles":
+        message = await bot.get_channel(payload.channel_id).get_message(payload.message_id)
+        user = discord.utils.get(bot.get_all_members(), id=payload.user_id)
+        if not user.bot:
+            try:
+                role = await get_role_from_reaction(message,
+                                                    payload.emoji.name)
+                if not role:
+                    return await bot.get_channel(payload.channel_id).send(
+                        "There was an error (cant_get_role_from_react)")
+                elif role not in user.roles:
+                    return None
+                else:
+                    return await user.remove_roles(role)
+            except ValueError as e:
+                return print(e.args)
 
 
 def main():
