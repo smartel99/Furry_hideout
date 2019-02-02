@@ -4,7 +4,7 @@ INPUT_NOT_VALID = "Input is not valid, please enter a '{}'"
 
 WELCOME_MESSAGE = """Welcome to Furry HideOut!
 
-Please check the rule channels (#rules), then please enter your birth date in the `DAY/MONTH/YEAR` format in the verification channel.
+Please check the rule channels (#rules), then please enter your birth date in the `DD/MM/YYYY` format in the verification channel.
 If you get kicked after entering your date and think you did a mistake, just rejoin the server!
 https://discord.gg/5xqjzdQ
 Once you are verified, please use the #get-roles channel to set your basic roles.

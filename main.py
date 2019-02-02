@@ -37,12 +37,12 @@ async def create_invite_with_exc_msg(e, channel):
 async def on_message(message):
     try:
         if not message.author.bot:
-            role = discord.utils.get(message.guild.roles, name="verified")
+            role = discord.utils.get(message.guild.roles, name="Verified")
             if message.channel.name == "verification":
                 await message.delete()
                 if role not in message.author.roles:
                     log_channel = discord.utils.get(
-                        discord.utils.get(bot.guilds, name="bot fuck").channels,
+                        discord.utils.get(bot.guilds, name="Furry HideOut").channels,
                         name='bot-log')
                     try:
                         bd_verification.verify_birthday(message.content)
