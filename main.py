@@ -13,19 +13,6 @@ bot = commands.Bot(command_prefix='f.',
                    command_not_found="Command not found")
 
 
-# gender_message = bot.get_channel(540695612857909280).get_message(540698835098271780)
-#
-# orientation_message = discord.utils.get(
-#     bot.get_all_channels(),
-#     id=540695612857909280).\
-#     get_message(540698835098271780)
-#
-# preference_message = discord.utils.get(
-#     bot.get_all_channels(),
-#     id=540695612857909280).\
-#     get_message(540698835098271780)
-
-
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.Game("f.help"))
@@ -40,31 +27,56 @@ async def on_member_join(member):
 
 @bot.event
 async def on_message(message):
+    await bot.process_commands(message)
+
+
+@bot.command(pass_context=True)
+async def verify(ctx, psswd, birthday):
     try:
-        if not message.author.bot:
-            role = discord.utils.get(message.guild.roles, name="verified")
-            if message.channel.name == "verification":
-                if role not in message.author.roles:
-                    log_channel = discord.utils.get(
-                        discord.utils.get(bot.guilds, name="bot fuck").channels,
-                        name='bot-log')
+        if not ctx.message.author.bot:
+            if psswd != "kitten":
+                await ctx.message.channel.send("That's the wrong key word, please go read the rules carefully")
+            role = discord.utils.get(ctx.message.guild.roles, name="verified")
+            if not role:
+                role = await create_role(ctx.message.guild, "verified", discord.colour.Color.blue())
+            if ctx.message.channel.name == "verification":
+                if role not in ctx.message.author.roles:
+                    log_channel = discord.utils.get(ctx.guild.channels,
+                                                    name='bot-log')
+                    if not log_channel:
+                        await ctx.message.delete()
+                        return await ctx.send("There is no channel called 'bot-log' in this server, please create one "
+                                              "to use this functionality")
                     try:
-                        bd_verification.verify_birthday(message.content)
-                        await message.author.add_roles(role)
-                        await message.delete()
-                        await message.author.send(messages.USER_IS_VERIFIED)
-                        await log_channel.send(messages.GIVEN_VERIFIED_TO_USER.format(message.author))
+                        bd_verification.verify_birthday(birthday)
+                        await ctx.message.author.add_roles(role)
+                        await ctx.message.author.send(messages.USER_IS_VERIFIED)
+                        await log_channel.send(messages.GIVEN_VERIFIED_TO_USER.format(ctx.message.author, birthday))
                     except ValueError:
-                        await message.channel.send(messages.INPUT_NOT_VALID.format("date"))
+                        await ctx.message.channel.send(messages.INPUT_NOT_VALID.format("date"))
                     except bd_verification.Underaged as e:
-                        await message.author.send(e)
+                        await ctx.message.author.send(e)
                         await log_channel.send(messages.USER_IS_UNDERAGED.format(
-                            message))
-                        await message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
-                            message.content))
+                            ctx.message))
+                        await ctx.message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
+                            ctx.message.content))
+
     except AttributeError as e:
         e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(e.args)
-        await message.channel.send(e_mess + traceback.format_tb(e.__traceback__)[0] + "```")
+        await ctx.message.channel.send(e_mess + traceback.format_tb(e.__traceback__)[0] + "```")
+    except discord.errors.Forbidden:
+        await ctx.message.channel.send("I cannot send you a DM {}, please ask a staff member to assist you with the "
+                                       "verification process".format(ctx.message.author.mention))
+
+    await ctx.message.delete()
+
+
+@verify.error
+async def verify_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("Missing arguments, please make sure you include all arguments in the command")
+    elif isinstance(error, commands.BotMissingPermissions):
+        await ctx.send("I don't have the permissions required to do this. (missing: {})".format(error.missing_perms))
 
 
 async def create_role(guild, name, color):
