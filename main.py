@@ -1,3 +1,4 @@
+import os
 import traceback
 
 import discord
@@ -35,6 +36,14 @@ async def create_invite_with_exc_msg(e, channel):
 
 @bot.event
 async def on_message(message):
+    if not message.author.bot:
+        with open(Token.get_log_path(message), 'a+') as file:
+            file.seek(0, os.SEEK_END)
+            if not file.tell():
+                file.write(messages.USER_FILE_INFO.format(message.author))
+            file.seek(0)
+            file.write(messages.USER_NEW_MESSAGE_TO_LOG.format(message))
+
     await bot.process_commands(message)
 
 
