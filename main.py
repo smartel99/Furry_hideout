@@ -1,3 +1,4 @@
+import logging
 import traceback
 
 import discord
@@ -9,9 +10,11 @@ import messages
 import roles
 
 bot = commands.Bot(command_prefix='f.',
-                   description='The official bot of the Furry Hideout!',
+                   description='A nice dragon bot to help the guild!',
                    pm_help=True,
                    command_not_found="Command not found")
+
+logging.basicConfig(level=logging.INFO)
 
 
 @bot.event
@@ -35,15 +38,19 @@ async def create_invite_with_exc_msg(e, channel):
 
 @bot.event
 async def on_message(message):
+    roles.extract_roles_from_message(message)
     try:
         if not message.author.bot:
-            role = discord.utils.get(message.guild.roles, name="Verified")
             if message.channel.name == "verification":
+                role = discord.utils.get(message.guild.roles, name="Verified")
+                if not role:
+                    role = await create_role(message.channel.guild, "Verified", discord.Color.blue())
+                log_channel = discord.utils.get(message.channel.guild.channels, name='bot-log')
+                if not log_channel:
+                    log_channel = await message.channel.guild.create_text_channel("bot-log",
+                                                                                  reason="Channel was needed")
                 await message.delete()
                 if role not in message.author.roles:
-                    log_channel = discord.utils.get(
-                        discord.utils.get(bot.guilds, name="Furry HideOut").channels,
-                        name='bot-log')
                     try:
                         bd_verification.verify_birthday(message.content)
                         await message.author.add_roles(role)
@@ -57,10 +64,12 @@ async def on_message(message):
                                                          reason=messages.USER_IS_UNDERAGED.format(message))
                         await log_channel.send(messages.USER_IS_UNDERAGED.format(
                             message))
+            else:
+                await bot.process_commands(message)
 
     except Exception as e:
         e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(e.args)
-        await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
+        await message.channel.send(e_mess + str(traceback.format_tb(e.__traceback__)) + "```")
 
 
 async def create_role(guild, name, color):
@@ -201,7 +210,7 @@ async def on_raw_reaction_add(payload):
             except Exception as e:
                 e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(
                     e.args)
-                return await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
+                return await message.channel.send(e_mess + str(traceback.format_tb(e.__traceback__)) + "```")
 
 
 @bot.event
@@ -223,7 +232,34 @@ async def on_raw_reaction_remove(payload):
             except Exception as e:
                 e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(
                     e.args)
-                return await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
+                return await message.channel.send(e_mess + str(traceback.format_tb(e.__traceback__)) + "```")
+
+
+@bot.command(pass_context=True)
+async def ping(ctx):
+    return await ctx.message.channel.send("Pong")
+
+
+@bot.command(pass_context=True)
+async def del_all_from(ctx, user_id):
+    r = discord.utils.get(ctx.message.guild.roles, name="staff")
+    if not r:
+        return await ctx.message.channel.send("Cannot find a role called 'staff', unable to continue")
+    if r not in ctx.message.author.roles:
+        return await ctx.message.channel.send("You do not have the required role to use this command")
+    user = discord.utils.get(ctx.message.guild.members, id=user_id)
+    print(user)
+
+    def is_user(m):
+        return m.author == user
+
+    t_chnls = ctx.message.guild.text_channels
+    for channel in t_chnls:
+        print("in channel {}".format(channel.name))
+        deleted = await channel.purge(limit=None,
+                                      check=is_user,
+                                      bulk=True)
+        await ctx.message.channel.send("deleted {} messages in {}".format(deleted, channel.name))
 
 
 def main():

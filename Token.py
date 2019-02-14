@@ -2,7 +2,7 @@ import os
 
 
 def get_token_file():
-    return os.path.abspath(os.path.join('..', 'bot.token'))
+    return os.path.abspath(os.path.join('..', 'FH_data', 'bot.token'))
 
 
 def get_token():
