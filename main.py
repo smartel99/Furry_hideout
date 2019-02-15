@@ -48,6 +48,37 @@ async def on_message(message):
 
 
 @bot.command(pass_context=True)
+@commands.has_role("Admin")
+async def ban(ctx, user_id, reason):
+    """
+    Ban a user across all the guilds the bot is in
+    :param user_id: the ID of the user to ban
+    :param reason: the reason of the ban, must be between ""
+    """
+    int_user_id = int(user_id)
+    user = bot.get_user(int_user_id)
+    for guild in bot.guilds:
+        log_channel = discord.utils.get(guild.text_channels, name="bot-log")
+        if not log_channel:
+            await guild.owner.send("I need a text channel called 'bot-log' in order to log my activities")
+        else:
+            await log_channel.send("Banning user '{0}' with reason '{1}'. The ban was put in place by {"
+                                   "2.message.author.name} in the guild '{2.guild.name}'".format(user, reason, ctx))
+        try:
+            await guild.ban(user, reason=reason, delete_message_days=7)
+        except Exception as e:
+            print(e)
+
+
+@ban.error
+async def ban_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.send("You do not have the permissions to use this command")
+    else:
+        await ctx.send(error.args)
+
+
+@bot.command(pass_context=True)
 async def verify(ctx, psswd, birthday):
     try:
         if not ctx.message.author.bot:
