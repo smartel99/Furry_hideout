@@ -1,3 +1,4 @@
+import datetime
 import os
 import traceback
 
@@ -9,15 +10,15 @@ import bd_verification
 import messages
 import roles
 
-bot = commands.Bot(command_prefix='f.',
+bot = commands.Bot(command_prefix='!.',
                    description='The official bot of the Furry Hideout!',
-                   pm_help=True,
-                   command_not_found="Command not found")
+                   command_not_found="Command not found",
+                   max_message=100000)
 
 
 @bot.event
 async def on_ready():
-    await bot.change_presence(activity=discord.Game("f.help"))
+    await bot.change_presence(activity=discord.Game("!.help"))
     print('Logged in as: {}'.format(bot.user.name))
     print('-----------------')
 
@@ -37,7 +38,7 @@ async def create_invite_with_exc_msg(e, channel):
 @bot.event
 async def on_message(message):
     if not message.author.bot:
-        with open(Token.get_log_path(message), 'a+') as file:
+        with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
             file.seek(0, os.SEEK_END)
             if not file.tell():
                 file.write(messages.USER_FILE_INFO.format(message.author))
@@ -45,6 +46,29 @@ async def on_message(message):
             file.write(messages.USER_NEW_MESSAGE_TO_LOG.format(message))
 
     await bot.process_commands(message)
+
+
+@bot.event
+async def on_message_delete(message):
+    if not message.author.bot:
+        with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
+            file.seek(0, os.SEEK_END)
+            if not file.tell():
+                file.write(messages.USER_FILE_INFO.format(message.author))
+            file.seek(0)
+            file.write(messages.USER_MESSAGE_DELETED_TO_LOG.format(datetime.datetime.utcnow(), message))
+
+
+@bot.event
+async def on_message_edit(b, a):
+    if not a.author.bot and b.content != a.content:
+        print("on message edit triggered")
+        with open(Token.get_log_path(a), 'a+', encoding="utf-8") as file:
+            file.seek(0, os.SEEK_END)
+            if not file.tell():
+                file.write(messages.USER_FILE_INFO.format(a.author))
+            file.seek(0)
+            file.write(messages.USER_MESSAGE_EDITED_TO_LOG.format(b, a))
 
 
 @bot.command(pass_context=True)
@@ -79,35 +103,40 @@ async def ban_error(ctx, error):
 
 
 @bot.command(pass_context=True)
-async def verify(ctx, psswd, birthday):
+async def verify(ctx, keyword, date_of_birth):
+    """
+    To verify yourself in the server
+    :param keyword: The keyword found in the rules
+    :param date_of_birth: pretty self explanatory ;3
+    """
     try:
         if not ctx.message.author.bot:
-            if psswd != "kitten":
-                await ctx.message.channel.send("That's the wrong key word, please go read the rules carefully")
+            await ctx.message.delete()
+            if keyword != "kitten":
+                return await ctx.message.channel.send("That's the wrong key word, please go read the rules carefully")
             role = discord.utils.get(ctx.message.guild.roles, name="verified")
             if not role:
                 role = await create_role(ctx.message.guild, "verified", discord.colour.Color.blue())
-            if ctx.message.channel.name == "verification":
-                if role not in ctx.message.author.roles:
-                    log_channel = discord.utils.get(ctx.guild.channels,
-                                                    name='bot-log')
-                    if not log_channel:
-                        await ctx.message.delete()
-                        return await ctx.send("There is no channel called 'bot-log' in this server, please create one "
-                                              "to use this functionality")
-                    try:
-                        bd_verification.verify_birthday(birthday)
-                        await ctx.message.author.add_roles(role)
-                        await ctx.message.author.send(messages.USER_IS_VERIFIED)
-                        await log_channel.send(messages.GIVEN_VERIFIED_TO_USER.format(ctx.message.author, birthday))
-                    except ValueError:
-                        await ctx.message.channel.send(messages.INPUT_NOT_VALID.format("date"))
-                    except bd_verification.Underaged as e:
-                        await ctx.message.author.send(e)
-                        await log_channel.send(messages.USER_IS_UNDERAGED.format(
-                            ctx.message))
-                        await ctx.message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
-                            ctx.message.content))
+            if ctx.message.channel.name == "verification" and role not in ctx.message.author.roles:
+                log_channel = discord.utils.get(ctx.guild.channels,
+                                                name='bot-log')
+                if not log_channel:
+                    await ctx.message.delete()
+                    return await ctx.send("There is no channel called 'bot-log' in this server, please create one "
+                                          "to use this functionality")
+                try:
+                    bd_verification.verify_birthday(date_of_birth)
+                    await ctx.message.author.add_roles(role)
+                    await ctx.message.author.send(messages.USER_IS_VERIFIED)
+                    await log_channel.send(messages.GIVEN_VERIFIED_TO_USER.format(ctx.message.author, date_of_birth))
+                except ValueError:
+                    await ctx.message.channel.send(messages.INPUT_NOT_VALID.format("date"))
+                except bd_verification.Underaged as e:
+                    await ctx.message.author.send(e)
+                    await log_channel.send(messages.USER_IS_UNDERAGED.format(
+                        ctx.message))
+                    await ctx.message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
+                        ctx.message.content))
 
     except AttributeError as e:
         e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(e.args)
@@ -115,8 +144,6 @@ async def verify(ctx, psswd, birthday):
     except discord.errors.Forbidden:
         await ctx.message.channel.send("I cannot send you a DM {}, please ask a staff member to assist you with the "
                                        "verification process".format(ctx.message.author.mention))
-
-    await ctx.message.delete()
 
 
 @verify.error

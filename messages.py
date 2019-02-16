@@ -17,3 +17,9 @@ GIVEN_VERIFIED_TO_USER = "Given the verified role to user {0.name}. (birthday en
 USER_FILE_INFO = "Username: {0.name}, ID: {0.id}, joined the server: {0.joined_at}, created account: {0.created_at}\n"
 
 USER_NEW_MESSAGE_TO_LOG = "[Created: {0.created_at}][Channel: {0.channel.name}][ID: {0.id}] {0.content}\n"
+
+USER_MESSAGE_DELETED_TO_LOG = "[Deleted: {0}][Channel: {1.channel.name}][ID: {1.id}] {1.content}\n"
+
+USER_MESSAGE_EDITED_TO_LOG = "[Edited: {1.edited_at}][Channel: {1.channel.name}][ID: {1.id}]\n" \
+                             "  From: {0.content}\n" \
+                             "  To:   {1.content}\n"
