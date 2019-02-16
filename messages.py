@@ -1,3 +1,7 @@
+from datetime import datetime
+
+import discord
+
 USER_IS_UNDERAGED = "User {0.author.name} entered a date less than 18 years ago ({0.content})"
 USER_IS_VERIFIED = "You are now verified, please setup your roles in the #get_roles channel."
 INPUT_NOT_VALID = "Input is not valid, please enter a '{}'"
@@ -23,3 +27,25 @@ USER_MESSAGE_DELETED_TO_LOG = "[Deleted: {0}][Channel: {1.channel.name}][ID: {1.
 USER_MESSAGE_EDITED_TO_LOG = "[Edited: {1.edited_at}][Channel: {1.channel.name}][ID: {1.id}]\n" \
                              "  From: {0.content}\n" \
                              "  To:   {1.content}\n"
+
+
+def member_is_underaged(message, date_of_birth):
+    em = discord.Embed(title="User is underaged",
+                       description=message.author.name,
+                       timestamp=datetime.now(),
+                       colour=discord.Color.red())
+    em.add_field(name="Birthday", value=date_of_birth)
+    em.add_field(name="Joined Discord", value=message.author.created_at)
+    em.set_thumbnail(url=message.author.avatar_url)
+    return em
+
+
+def member_is_verified(message, date_of_birth):
+    em = discord.Embed(title="Verified user",
+                       description=message.author.name,
+                       timestamp=datetime.now(),
+                       colour=discord.Color.red())
+    em.add_field(name="Birthday", value=date_of_birth)
+    em.add_field(name="Joined Discord", value=message.author.created_at)
+    em.set_thumbnail(url=message.author.avatar_url)
+    return em

@@ -114,29 +114,30 @@ async def verify(ctx, keyword, date_of_birth):
             await ctx.message.delete()
             if keyword != "kitten":
                 return await ctx.message.channel.send("That's the wrong key word, please go read the rules carefully")
-            role = discord.utils.get(ctx.message.guild.roles, name="verified")
+            role = discord.utils.get(ctx.message.guild.roles, name="Verified")
             if not role:
-                role = await create_role(ctx.message.guild, "verified", discord.colour.Color.blue())
-            if ctx.message.channel.name == "verification" and role not in ctx.message.author.roles:
-                log_channel = discord.utils.get(ctx.guild.channels,
-                                                name='bot-log')
-                if not log_channel:
-                    await ctx.message.delete()
-                    return await ctx.send("There is no channel called 'bot-log' in this server, please create one "
-                                          "to use this functionality")
-                try:
-                    bd_verification.verify_birthday(date_of_birth)
-                    await ctx.message.author.add_roles(role)
-                    await ctx.message.author.send(messages.USER_IS_VERIFIED)
-                    await log_channel.send(messages.GIVEN_VERIFIED_TO_USER.format(ctx.message.author, date_of_birth))
-                except ValueError:
-                    await ctx.message.channel.send(messages.INPUT_NOT_VALID.format("date"))
-                except bd_verification.Underaged as e:
-                    await ctx.message.author.send(e)
-                    await log_channel.send(messages.USER_IS_UNDERAGED.format(
-                        ctx.message))
-                    await ctx.message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
-                        ctx.message.content))
+                role = await create_role(ctx.message.guild, "Verified", discord.colour.Color.blue())
+            if role not in ctx.message.author.roles:
+                if ctx.message.channel.name == "verification":
+                    log_channel = discord.utils.get(ctx.guild.channels,
+                                                    name='bot-log')
+                    if not log_channel:
+                        await ctx.message.delete()
+                        return await ctx.send("There is no channel called 'bot-log' in this server, please create one "
+                                              "to use this functionality")
+                    try:
+                        bd_verification.verify_birthday(date_of_birth)
+                        async with log_channel.typing():
+                            await ctx.message.author.add_roles(role)
+                            await ctx.message.author.send(messages.USER_IS_VERIFIED)
+                            await log_channel.send(embed=messages.member_is_verified(ctx.message, date_of_birth))
+                    except ValueError:
+                        await ctx.message.channel.send(messages.INPUT_NOT_VALID.format("date"))
+                    except bd_verification.Underaged as e:
+                        await ctx.message.author.send(e)
+                        await log_channel.send(embed=messages.member_is_underaged(ctx.message, date_of_birth))
+                        await ctx.message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
+                            ctx.message))
 
     except AttributeError as e:
         e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(e.args)
