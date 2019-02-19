@@ -30,17 +30,8 @@ async def on_member_join(member):
 
 @bot.event
 async def on_error(event, *args, **kwargs):
-    guild = args[0].guild.name
-    message = args[0].content
-    channel = args[0].channel
-    await bot.get_user(152543367937392640).send("```Error in {}\n"
-                                                "In guild: {}\n"
-                                                "In channel: {}\n"
-                                                "Message: {}\n\n{}```".format(event,
-                                                                              guild,
-                                                                              channel,
-                                                                              message,
-                                                                              traceback.format_exc()))
+    await bot.get_user(152543367937392640).send("```Error in {}\n\n{}```".format(event,
+                                                                                 traceback.format_exc()))
 
 
 async def create_invite_with_exc_msg(e, channel):
