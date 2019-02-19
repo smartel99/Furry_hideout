@@ -28,6 +28,21 @@ async def on_member_join(member):
     await member.send(messages.WELCOME_MESSAGE)
 
 
+@bot.event
+async def on_error(event, *args, **kwargs):
+    guild = args[0].guild.name
+    message = args[0].content
+    channel = args[0].channel
+    await bot.get_user(152543367937392640).send("```Error in {}\n"
+                                                "In guild: {}\n"
+                                                "In channel: {}\n"
+                                                "Message: {}\n\n{}```".format(event,
+                                                                              guild,
+                                                                              channel,
+                                                                              message,
+                                                                              traceback.format_exc()))
+
+
 async def create_invite_with_exc_msg(e, channel):
     il = await channel.create_invite(max_uses=1, max_age=86400, unique=True, reason="Needed to reinvite user")
     embed = discord.Embed(color=0xff0000)
@@ -49,7 +64,6 @@ async def on_message(message):
                 file.write(messages.USER_FILE_INFO.format(message.author))
             file.seek(0)
             file.write(messages.USER_NEW_MESSAGE_TO_LOG.format(message))
-
     await bot.process_commands(message)
 
 
@@ -102,7 +116,7 @@ async def ban(ctx, user_id, reason):
         try:
             await guild.ban(user, reason=reason, delete_message_days=7)
         except Exception as e:
-            print(e)
+            await ctx.send("User not found in {}".format(guild.name))
 
 
 @ban.error
