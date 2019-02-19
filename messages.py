@@ -2,6 +2,8 @@ from datetime import datetime
 
 import discord
 
+import Token
+
 USER_IS_UNDERAGED = "User {0.author.name} entered a date less than 18 years ago ({0.content})"
 USER_IS_VERIFIED = "You are now verified, please setup your roles in the #get_roles channel."
 INPUT_NOT_VALID = "Input is not valid, please enter a '{}'"
@@ -49,3 +51,53 @@ def member_is_verified(message, date_of_birth):
     em.add_field(name="Joined Discord", value=message.author.created_at)
     em.set_thumbnail(url=message.author.avatar_url)
     return em
+
+
+def member_edited_message(b, a):
+    em = discord.Embed(title="Edited Message",
+                       description="In channel {}".format(a.channel.name),
+                       color=discord.Color.green())
+    em.set_author(name=b.author.name, icon_url=b.author.avatar_url)
+    em.add_field(name="From:", value=b.content, inline=False)
+    em.add_field(name="To:", value=a.content, inline=False)
+    em.timestamp = a.edited_at
+    return em
+
+
+async def send_files_to_file_channel(message, file_channel):
+    al = []
+    try:
+        for a in message.attachments:
+            al.append(discord.File(Token.get_attachment_file_path(message, a)))
+        m = await file_channel.send(files=al)
+        al = []
+        for a in m.attachments:
+            al.append(a.url)
+    except Exception as e:
+        print(e)
+    return al
+
+
+# Find files corresponding to attachments
+# If found:
+#   - send them to file_channel
+#   - if more than one attachment:
+#       - get file type
+#       - send an embed for each attachments
+async def member_deleted_message(message, log_channel, file_channel):
+    em = discord.Embed(title="Deleted Message",
+                       description="In channel {}".format(message.channel.name),
+                       color=discord.Color.blue())
+    em.set_author(name=message.author.name, icon_url=message.author.avatar_url)
+    em.add_field(name="Message:", value=message.content, inline=False)
+    em.timestamp = datetime.utcnow()
+    if message.attachments:
+        fl = await send_files_to_file_channel(message, file_channel)
+        for m in fl:
+            em.add_field(name=m.split("/")[-1], value=m)
+    await log_channel.send(embed=em)
+
+
+async def save_attachments(message):
+    for a in message.attachments:
+        await a.save(Token.get_attachment_file_path(message, a))

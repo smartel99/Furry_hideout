@@ -38,6 +38,11 @@ async def create_invite_with_exc_msg(e, channel):
 @bot.event
 async def on_message(message):
     if not message.author.bot:
+        if message.attachments:
+            await messages.save_attachments(message)
+            message.content = "[Has attachment]" + message.content + "\n\tAttachments:\n\t\t"
+            for a in message.attachments:
+                message.content += str(a.url.split("/")[-1]) + " [ID: {}]\n\t\t".format(a.id)
         with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
             file.seek(0, os.SEEK_END)
             if not file.tell():
@@ -51,6 +56,10 @@ async def on_message(message):
 @bot.event
 async def on_message_delete(message):
     if not message.author.bot:
+        log_channel = discord.utils.get(message.guild.text_channels, name="bot-log")
+        file_channel = discord.utils.get(bot.guilds, name="zamirynth").text_channels[0]
+        if log_channel:
+            await messages.member_deleted_message(message, log_channel, file_channel)
         with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
             file.seek(0, os.SEEK_END)
             if not file.tell():
@@ -62,7 +71,9 @@ async def on_message_delete(message):
 @bot.event
 async def on_message_edit(b, a):
     if not a.author.bot and b.content != a.content:
-        print("on message edit triggered")
+        log_channel = discord.utils.get(a.guild.text_channels, name="bot-log")
+        if log_channel:
+            await log_channel.send(embed=messages.member_edited_message(b, a))
         with open(Token.get_log_path(a), 'a+', encoding="utf-8") as file:
             file.seek(0, os.SEEK_END)
             if not file.tell():

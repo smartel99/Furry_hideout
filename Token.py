@@ -13,7 +13,25 @@ def get_token():
 
 
 def get_log_path(message):
-    path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name))
+    path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, message.author.name))
     if not os.path.exists(path):
         os.makedirs(path)
-    return os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, message.author.name + '.user'))
+    return os.path.abspath(os.path.join('..', 'FH_data', message.guild.name,
+                                        message.author.name,
+                                        message.author.name + ".user"))
+
+
+def get_attachment_file_path(message, a):
+    path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, message.author.name))
+    if not os.path.exists(path):
+        os.makedirs(path)
+    path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name,
+                                        message.author.name,
+                                        "attachment_{}.".format(str(a.id) + "." + get_file_type(a.url))))
+    return path
+
+
+def get_file_type(url):
+    r = url.split("/")
+    r = r[-1]
+    return r.split(".")[-1]
