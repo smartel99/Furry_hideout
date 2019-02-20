@@ -34,6 +34,13 @@ async def on_error(event, *args, **kwargs):
                                                                                  traceback.format_exc()))
 
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.message.delete()
+        await ctx.send(error)
+
+
 async def create_invite_with_exc_msg(e, channel):
     il = await channel.create_invite(max_uses=1, max_age=86400, unique=True, reason="Needed to reinvite user")
     embed = discord.Embed(color=0xff0000)
@@ -44,17 +51,18 @@ async def create_invite_with_exc_msg(e, channel):
 @bot.event
 async def on_message(message):
     if not message.author.bot:
-        if message.attachments:
-            await messages.save_attachments(message)
-            message.content = "[Has attachment]" + message.content + "\n\tAttachments:\n\t\t"
-            for a in message.attachments:
-                message.content += str(a.url.split("/")[-1]) + " [ID: {}]\n\t\t".format(a.id)
-        with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
-            file.seek(0, os.SEEK_END)
-            if not file.tell():
-                file.write(messages.USER_FILE_INFO.format(message.author))
-            file.seek(0)
-            file.write(messages.USER_NEW_MESSAGE_TO_LOG.format(message))
+        if type(message.channel) != discord.DMChannel:
+            if message.attachments:
+                await messages.save_attachments(message)
+                message.content = "[Has attachment]" + message.content + "\n\tAttachments:\n\t\t"
+                for a in message.attachments:
+                    message.content += str(a.url.split("/")[-1]) + " [ID: {}]\n\t\t".format(a.id)
+            with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
+                file.seek(0, os.SEEK_END)
+                if not file.tell():
+                    file.write(messages.USER_FILE_INFO.format(message.author))
+                file.seek(0)
+                file.write(messages.USER_NEW_MESSAGE_TO_LOG.format(message))
     await bot.process_commands(message)
 
 
