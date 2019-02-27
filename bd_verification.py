@@ -11,13 +11,15 @@ def verify_birthday(date):
     if age < 18:
         raise Underaged("You must be 18 or older to access this server.\n"
                         "If this is an error, you can re-join the server")
-    elif age > 60:
-        raise ValueError
+    elif age > 50:
+        raise Invalid("For reasons of safety, dates more than 50 years ago are invalid")
 
 
 class Underaged(Exception):
     def __init__(self, message):
         self.message = message
 
-    def __str__(self):
-        return self.message
+
+class Invalid(Exception):
+    def __init__(self, message):
+        self.message = message

@@ -5,7 +5,7 @@ import discord
 import Token
 
 USER_IS_UNDERAGED = "User {0.author.name} entered a date less than 18 years ago ({0.content})"
-USER_IS_VERIFIED = "You are now verified, please setup your roles in the #get_roles channel."
+USER_IS_VERIFIED = "You are now verified."
 INPUT_NOT_VALID = "Input is not valid, please enter a '{}'"
 
 WELCOME_MESSAGE = """Welcome to Furry HideOut!
@@ -30,6 +30,11 @@ USER_MESSAGE_EDITED_TO_LOG = "[Edited: {1.edited_at}][Channel: {1.channel.name}]
                              "  From: {0.content}\n" \
                              "  To:   {1.content}\n"
 
+DEFAULT_WELCOME_MESSAGE = "Welcome to {}!"
+ON_GUILD_JOIN_MESSAGE = """Hello there!
+I'm Zamyrinth, your friendly helping dragon bot!
+To view what I can do, use the command `!.help`!"""
+
 
 def member_is_underaged(message, date_of_birth):
     em = discord.Embed(title="User is underaged",
@@ -42,7 +47,7 @@ def member_is_underaged(message, date_of_birth):
     return em
 
 
-def member_is_verified(message, date_of_birth):
+def member_is_verified(message: discord.Message, date_of_birth: str) -> discord.Embed:
     em = discord.Embed(title="Verified user",
                        description=message.author.name,
                        timestamp=datetime.now(),
@@ -78,13 +83,9 @@ async def send_files_to_file_channel(message, file_channel):
     return al
 
 
-# Find files corresponding to attachments
-# If found:
-#   - send them to file_channel
-#   - if more than one attachment:
-#       - get file type
-#       - send an embed for each attachments
-async def member_deleted_message(message, log_channel, file_channel):
+async def member_deleted_message(message: discord.Message,
+                                 log_channel: discord.TextChannel,
+                                 file_channel: discord.TextChannel):
     em = discord.Embed(title="Deleted Message",
                        description="In channel {}".format(message.channel.name),
                        color=discord.Color.blue())
@@ -101,3 +102,24 @@ async def member_deleted_message(message, log_channel, file_channel):
 async def save_attachments(message):
     for a in message.attachments:
         await a.save(Token.get_attachment_file_path(message, a))
+
+
+def format_updated_message(message):
+    m = "Here is the new welcoming message for this guild!:\n```{}```".format(message)
+    return m
+
+
+def create_new_role(category, roles, guild: discord.Guild) -> str:
+    message = f"```md\n{category}\n"
+    for l in category:
+        message += "-"
+    message += "\n\n"
+
+    for idx, role in enumerate(roles):
+        r = discord.utils.get(guild.roles, name=role)
+        if not r:
+            return None
+        message += f"{idx + 1}.  {role}\n"
+    message += "\n< To give yourself your desired role, select the corresponding emoji bellow >"
+    message += "\n/* To remove a role you have, remove the corresponding reaction *```"
+    return message

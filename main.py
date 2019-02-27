@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import traceback
 
@@ -8,24 +9,40 @@ from discord.ext import commands
 import Token
 import bd_verification
 import messages
-import roles
+from data import mongo_setup
+from services import data_service as svc
+
+mongo_setup.global_init()
+# TODO: Get this to work properly
+logging.basicConfig(level=logging.INFO)
 
 bot = commands.Bot(command_prefix='!.',
                    description='The official bot of the Furry Hideout!',
                    command_not_found="Command not found",
-                   max_message=100000)
+                   max_message=100000,
+                   case_insensitive=True)
 
 
 @bot.event
 async def on_ready():
-    await bot.change_presence(activity=discord.Game("!.help"))
+    await bot.change_presence(activity=discord.Game(
+        name="!.help for help",
+        start=datetime.datetime.now()
+    ))
     print('Logged in as: {}'.format(bot.user.name))
     print('-----------------')
 
 
 @bot.event
 async def on_member_join(member):
-    await member.send(messages.WELCOME_MESSAGE)
+    if svc.should_welcome_in_guild(member.guild.id):
+        await member.send(svc.get_welcome_message(member.guild.id))
+
+
+@bot.event
+async def on_guild_join(guild: discord.Guild):
+    svc.create_default_guild(guild)
+    await guild.system_channel.send(messages.ON_GUILD_JOIN_MESSAGE)
 
 
 @bot.event
@@ -36,6 +53,7 @@ async def on_error(event, *args, **kwargs):
 
 @bot.event
 async def on_command_error(ctx, error):
+    svc.increment_retarded_user(ctx.guild.id)
     if isinstance(error, commands.CommandNotFound):
         await ctx.message.delete()
         await ctx.send(error)
@@ -50,13 +68,14 @@ async def create_invite_with_exc_msg(e, channel):
 
 @bot.event
 async def on_message(message):
-    if not message.author.bot:
-        if type(message.channel) != discord.DMChannel:
+    if type(message.channel) != discord.DMChannel and type(message.channel) != discord.GroupChannel:
+        if svc.should_save_messages_in_guild(message.guild.id) and not message.author.bot:
             if message.attachments:
                 await messages.save_attachments(message)
                 message.content = "[Has attachment]" + message.content + "\n\tAttachments:\n\t\t"
                 for a in message.attachments:
                     message.content += str(a.url.split("/")[-1]) + " [ID: {}]\n\t\t".format(a.id)
+            svc.increment_message_saved(message.guild.id)
             with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
                 file.seek(0, os.SEEK_END)
                 if not file.tell():
@@ -68,35 +87,44 @@ async def on_message(message):
 
 @bot.event
 async def on_message_delete(message):
-    if not message.author.bot:
-        log_channel = discord.utils.get(message.guild.text_channels, name="bot-log")
-        file_channel = discord.utils.get(bot.guilds, name="zamirynth").text_channels[0]
-        if log_channel:
-            await messages.member_deleted_message(message, log_channel, file_channel)
-        with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
-            file.seek(0, os.SEEK_END)
-            if not file.tell():
-                file.write(messages.USER_FILE_INFO.format(message.author))
-            file.seek(0)
-            file.write(messages.USER_MESSAGE_DELETED_TO_LOG.format(datetime.datetime.utcnow(), message))
+    if type(message.channel) != discord.DMChannel and type(message.channel) != discord.GroupChannel:
+        if svc.should_show_deleted_in_guild(message.guild.id):
+            if not message.author.bot:
+                log_channel = svc.get_log_channel_in_guild(message.guild)
+                file_channel = discord.utils.get(bot.guilds, name="zamirynth").text_channels[0]
+                if log_channel:
+                    await messages.member_deleted_message(message, log_channel, file_channel)
+        if svc.should_save_messages_in_guild(message.guild.id):
+            svc.increment_message_deleted(message.guild.id)
+            with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
+                file.seek(0, os.SEEK_END)
+                if not file.tell():
+                    file.write(messages.USER_FILE_INFO.format(message.author))
+                file.seek(0)
+                file.write(messages.USER_MESSAGE_DELETED_TO_LOG.format(datetime.datetime.utcnow(), message))
 
 
 @bot.event
 async def on_message_edit(b, a):
-    if not a.author.bot and b.content != a.content:
-        log_channel = discord.utils.get(a.guild.text_channels, name="bot-log")
-        if log_channel:
-            await log_channel.send(embed=messages.member_edited_message(b, a))
-        with open(Token.get_log_path(a), 'a+', encoding="utf-8") as file:
-            file.seek(0, os.SEEK_END)
-            if not file.tell():
-                file.write(messages.USER_FILE_INFO.format(a.author))
-            file.seek(0)
-            file.write(messages.USER_MESSAGE_EDITED_TO_LOG.format(b, a))
+    if type(a.channel) != discord.DMChannel and type(a.channel) != discord.GroupChannel:
+        if svc.should_show_edited_in_guild(a.guild.id):
+            if not a.author.bot and b.content != a.content:
+                log_channel = svc.get_log_channel_in_guild(a.guild)
+                if log_channel:
+                    await log_channel.send(embed=messages.member_edited_message(b, a))
+
+        if svc.should_save_messages_in_guild(a.guild.id):
+            svc.increment_message_edited(a.guild.id)
+            with open(Token.get_log_path(a), 'a+', encoding="utf-8") as file:
+                file.seek(0, os.SEEK_END)
+                if not file.tell():
+                    file.write(messages.USER_FILE_INFO.format(a.author))
+                file.seek(0)
+                file.write(messages.USER_MESSAGE_EDITED_TO_LOG.format(b, a))
 
 
 @bot.command(pass_context=True)
-@commands.has_role("Admin")
+@commands.has_permissions(ban_members=True)
 async def ban(ctx, user_id, reason):
     """
     Ban a user across all the guilds the bot is in
@@ -106,9 +134,9 @@ async def ban(ctx, user_id, reason):
     int_user_id = int(user_id)
     user = bot.get_user(int_user_id)
     for guild in bot.guilds:
-        log_channel = discord.utils.get(guild.text_channels, name="bot-log")
+        log_channel = svc.get_log_channel_in_guild(guild)
         if not log_channel:
-            await guild.owner.send("I need a text channel called 'bot-log' in order to log my activities")
+            pass
         else:
             await log_channel.send("Banning user '{0}' with reason '{1}'. The ban was put in place by {"
                                    "2.message.author.name} in the guild '{2.guild.name}'".format(user, reason, ctx))
@@ -120,59 +148,76 @@ async def ban(ctx, user_id, reason):
 
 @ban.error
 async def ban_error(ctx, error):
-    if isinstance(error, commands.CheckFailure):
+    svc.increment_retarded_user(ctx.guild.id)
+    if isinstance(error, commands.MissingPermissions):
         await ctx.send("You do not have the permissions to use this command")
     else:
         await ctx.send(error.args)
 
 
 @bot.command(pass_context=True)
-async def verify(ctx, keyword, date_of_birth):
+async def verify(ctx: discord.ext.commands.Context, *args):
     """
-    To verify yourself in the server
-    :param keyword: The keyword found in the rules
-    :param date_of_birth: pretty self explanatory ;3
-    """
-    try:
-        if not ctx.message.author.bot:
-            await ctx.message.delete()
-            if keyword != "kitten":
-                return await ctx.message.channel.send("That's the wrong key word, please go read the rules carefully")
-            role = discord.utils.get(ctx.message.guild.roles, name="Verified")
-            if not role:
-                role = await create_role(ctx.message.guild, "Verified", discord.colour.Color.blue())
-            if role not in ctx.message.author.roles:
-                if ctx.message.channel.name == "verification":
-                    log_channel = discord.utils.get(ctx.guild.channels,
-                                                    name='bot-log')
-                    if not log_channel:
-                        await ctx.message.delete()
-                        return await ctx.send("There is no channel called 'bot-log' in this server, please create one "
-                                              "to use this functionality")
-                    try:
-                        bd_verification.verify_birthday(date_of_birth)
-                        async with log_channel.typing():
-                            await ctx.message.author.add_roles(role)
-                            await ctx.message.author.send(messages.USER_IS_VERIFIED)
-                            await log_channel.send(embed=messages.member_is_verified(ctx.message, date_of_birth))
-                    except ValueError:
-                        await ctx.message.channel.send(messages.INPUT_NOT_VALID.format("date"))
-                    except bd_verification.Underaged as e:
-                        await ctx.message.author.send(e)
-                        await log_channel.send(embed=messages.member_is_underaged(ctx.message, date_of_birth))
-                        await ctx.message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
-                            ctx.message))
+    To verify yourself in the server using your date of birth.
+    To use this command, you may have to use a password, set by the staff. This password may be in the rules.
 
-    except AttributeError as e:
-        e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(e.args)
-        await ctx.message.channel.send(e_mess + traceback.format_tb(e.__traceback__)[0] + "```")
-    except discord.errors.Forbidden:
-        await ctx.message.channel.send("I cannot send you a DM {}, please ask a staff member to assist you with the "
-                                       "verification process".format(ctx.message.author.mention))
+    Example of this command with a password:
+    !.verify password 01/01/0001
+
+    Example of this command without a password (if none is set):
+    !.verify 01/01/0001
+    should_verify must be enabled in the settings of the bot (use !.svu to enable it).
+    A 'verified' role must have been set (!.help svr)
+    A channel must be marked a the verification channel by using the !.svc command.
+    If a log channel is set (!.slc), a message will be posted there.
+    """
+    await ctx.message.delete()
+    if svc.should_verify(ctx.guild.id):
+        if svc.channel_is_verification(ctx):
+            vr = svc.get_verified_role_in_guild(ctx.guild)
+            if not vr:
+                return await ctx.send("There is no role setup for the verification")
+            log_channel = svc.get_log_channel_in_guild(ctx.guild)
+            password = svc.get_password_in_guild(ctx.guild.id)
+            if password:
+                if len(args) != 2:
+                    return await ctx.send("Missing/Too many arguments, please make sure you include all arguments in "
+                                          "the command")
+                dob = 1
+                if args[0] != password:
+                    return await ctx.send("Password invalid")
+            else:
+                if len(args) != 1:
+                    return await ctx.send("Missing/Too many arguments, please make sure you include all arguments in "
+                                          "the command")
+                dob = 0
+            try:
+                bd_verification.verify_birthday(args[dob])
+                svc.increment_verified_user(ctx.guild.id)
+                await ctx.author.add_roles(vr)
+                await ctx.author.send(messages.USER_IS_VERIFIED)
+                if log_channel:
+                    await log_channel.send(embed=messages.member_is_verified(ctx.message, args[dob]))
+            except ValueError:
+                await ctx.send(messages.INPUT_NOT_VALID.format("date"))
+            except bd_verification.Invalid as e:
+                await ctx.send(e)
+            except bd_verification.Underaged as e:
+                svc.increment_underaged_user(ctx.guild.id)
+                await ctx.author.send(e)
+                if log_channel:
+                    await log_channel.send(embed=messages.member_is_underaged(ctx.message, args[dob]))
+                await ctx.message.author.kick(reason=messages.USER_IS_UNDERAGED.format(
+                    ctx.message))
+        else:
+            await ctx.send("You cannot use this command in this channel")
+    else:
+        await ctx.send("This command is not enabled")
 
 
 @verify.error
 async def verify_error(ctx, error):
+    svc.increment_retarded_user(ctx.guild.id)
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("Missing arguments, please make sure you include all arguments in the command")
     elif isinstance(error, commands.BotMissingPermissions):
@@ -295,54 +340,43 @@ Preference
 
 
 @bot.event
-async def on_raw_reaction_add(payload):
-    if bot.get_channel(payload.channel_id).name == "get-roles":
-        message = await bot.get_channel(payload.channel_id).get_message(payload.message_id)
-        user = discord.utils.get(bot.get_all_members(), id=payload.user_id)
-        if not user.bot:
-            try:
-                role = await get_role_from_reaction(message,
-                                                    payload.emoji.name)
-                if not role:
-                    return await bot.get_channel(payload.channel_id).send(
-                        "There was an error, please contact an admin")
-                elif role in user.roles:
-                    return await user.send("You already have that role, this should not be happening")
-                elif roles.user_has_role_in_same_category(user, role):
-                    await message.remove_reaction(payload.emoji, user)
-                    return await user.send("You already have a role in that category, please remove it before assigning"
-                                           " yourself a new one")
-                else:
-                    await user.add_roles(role)
-            except Exception as e:
-                e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(
-                    e.args)
-                return await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    if payload.user_id != bot.user.id:
+        r = svc.get_role_from_payload(payload, bot.get_guild(payload.guild_id))
+        if not r:
+            return await bot.get_user(152543367937392640) \
+                .send("Role not found in `on_raw_reaction_add`")
+        u = bot.get_guild(payload.guild_id).get_member(payload.user_id)
+        if not u:
+            return await bot.get_user(152543367937392640) \
+                .send("User not found in `on_raw_reaction_add`")
+        await u.add_roles(r)
 
 
 @bot.event
-async def on_raw_reaction_remove(payload):
-    if bot.get_channel(payload.channel_id).name == "get-roles":
-        message = await bot.get_channel(payload.channel_id).get_message(payload.message_id)
-        user = discord.utils.get(bot.get_all_members(), id=payload.user_id)
-        if not user.bot:
-            try:
-                role = await get_role_from_reaction(message,
-                                                    payload.emoji.name)
-                if not role:
-                    return await bot.get_channel(payload.channel_id).send(
-                        "There was an error (cant_get_role_from_react)")
-                elif role not in user.roles:
-                    return None
-                else:
-                    return await user.remove_roles(role)
-            except Exception as e:
-                e_mess = "```If you get this message, please send it to Raldryniorth the ferg#3621:\n{}\n".format(
-                    e.args)
-                return await message.channel.send(e_mess + traceback.format_tb(e.__traceback__) + "```")
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    if payload.user_id != bot.user.id:
+        r = svc.get_role_from_payload(payload, bot.get_guild(payload.guild_id))
+        if not r:
+            return await bot.get_user(152543367937392640) \
+                .send("Role not found in `on_raw_reaction_remove`")
+        u = bot.get_guild(payload.guild_id).get_member(payload.user_id)
+        if not u:
+            return await bot.get_user(152543367937392640) \
+                .send("User not found in `on_raw_reaction_remove`")
+        await u.remove_roles(r)
 
 
 def main():
+    extensions = ['cogs.secrets',
+                  'cogs.settings',
+                  ]
+    for e in extensions:
+        try:
+            bot.load_extension(e)
+        except Exception as error:
+            print(f"failed to load extension {e}.")
+            traceback.print_exc()
     try:
         token = Token.get_token()
         bot.run(token)
