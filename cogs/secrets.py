@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from discord.ext import commands
@@ -13,6 +14,8 @@ class Secret(commands.Cog):
         """
         A message for someone.
         """
+        if not datetime.datetime.now().date() >= datetime.date(year=2019, month=2, day=28):
+            return await ctx.send("This command will unlock on February 28th")
         if ctx.author.id == 517306517569929216:
             await ctx.author.send("""Hey Charmy, it's Rald! ^^
 I'm glad you found this command that I've written just for you!
