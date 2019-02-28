@@ -9,7 +9,7 @@ class Secret(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(aliases=["Charmy"])
     async def message(self, ctx: commands.Context):
         """
         A message for someone.

@@ -21,6 +21,7 @@ class Guild(mongoengine.Document):
     should_show_deleted = mongoengine.BooleanField(default=False)
     should_show_edited = mongoengine.BooleanField(default=False)
     should_show_leaving = mongoengine.BooleanField(default=False)
+    should_show_joining = mongoengine.BooleanField(default=False)
     should_welcome_members = mongoengine.BooleanField(default=True)
     should_verify = mongoengine.BooleanField(default=False)
     should_save_messages = mongoengine.BooleanField(default=False)

@@ -10,6 +10,9 @@ from services import data_service as svc
 from services import exceptions as exc
 
 
+# Things left to do:
+
+
 class Settings(commands.Cog):
     """
     The setting commands for this guild.
@@ -33,6 +36,27 @@ class Settings(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+
+    @commands.command()
+    @commands.guild_only()
+    async def settings(self, ctx):
+        """
+        Shows all the settings for the bot in the server.
+        """
+        await ctx.message.delete()
+        em = messages.create_settings_embed(ctx)
+        await ctx.send(embed=em)
+
+    @commands.command(aliases=["sd"])
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True, manage_guild=True)
+    async def default_settings(self, ctx: commands.Context):
+        """
+        Sets all the settings to their default values.
+        This does not affect the channels and the welcome message.
+        """
+        svc.set_settings_to_default_in_guild(ctx.guild.id)
+        await ctx.send("Done:", embed=messages.create_settings_embed(ctx))
 
     @commands.command(name="set_message", aliases=['sm', 'setm', 'set_welcome'])
     @commands.guild_only()
@@ -103,7 +127,22 @@ class Settings(commands.Cog):
             svc.update_verification_channel_in_guild(ctx.guild.id, ctx.channel.id)
         except exc.UpdateError:
             return await ctx.send('There was an error processing this command')
-        await ctx.send('I will now log my things in this channel!')
+        await ctx.send('I will now verify members in this channel!')
+
+    @commands.command(aliases=['suc'])
+    @commands.has_permissions(administrator=True, manage_guild=True)
+    async def set_update_channel(self, ctx: discord.ext.commands.Context):
+        """
+        Sets the channel for the updates of the bot.
+        Messages sent by other servers will also be sent in that channel.
+        If a channel is already set, it will be overwritten
+        """
+        await ctx.message.delete()
+        try:
+            svc.update_update_channel_in_guild(ctx.guild.id, ctx.channel.id)
+        except exc.UpdateError:
+            return await ctx.send('There was an error processing this command')
+        await ctx.send('I will now verify members in this channel!')
 
     @commands.command(aliases=['svr'])
     @commands.has_permissions(administrator=True, manage_guild=True)
@@ -111,7 +150,7 @@ class Settings(commands.Cog):
         """
         Set the role given by the !.verify command.
         The role must already exist in the server.
-        The name of the role must be between quotes (ex: '!.svr "verified"')
+        The name of the role must be between quotes (ex: ';svr "verified"')
         If a role is already set, it will be overwritten
         """
         r = discord.utils.get(ctx.guild.roles, name=role_name)
@@ -135,12 +174,54 @@ class Settings(commands.Cog):
             return await ctx.send(e)
         await ctx.send('I will {}log deleted messages in this server'.format('' if r else 'not '))
 
+    @commands.command(aliases=['sse'])
+    @commands.has_permissions(administrator=True, manage_guild=True)
+    async def show_edited(self, ctx):
+        """
+        Toggles the logging of edited messages in the log channel.
+        If no logging channel is set, turning this on won't do anything.
+        """
+        await ctx.message.delete()
+        try:
+            r = svc.update_should_show_edited(ctx.guild.id)
+        except exc.UpdateError as e:
+            return await ctx.send(e)
+        await ctx.send('I will {}log edited messages in this server'.format('' if r else 'not '))
+
+    @commands.command(aliases=['ssj'])
+    @commands.has_permissions(administrator=True, manage_guild=True)
+    async def show_joining(self, ctx):
+        """
+        Toggles the logging of joining members in the log channel.
+        If no logging channel is set, turning this on won't do anything.
+        """
+        await ctx.message.delete()
+        try:
+            r = svc.update_should_show_joining(ctx.guild.id)
+        except exc.UpdateError as e:
+            return await ctx.send(e)
+        await ctx.send('I will {}log joining members in this server'.format('' if r else 'not '))
+
+    @commands.command(aliases=['ssl'])
+    @commands.has_permissions(administrator=True, manage_guild=True)
+    async def show_leaving(self, ctx):
+        """
+        Toggles the logging of leaving members in the log channel.
+        If no logging channel is set, turning this on won't do anything.
+        """
+        await ctx.message.delete()
+        try:
+            r = svc.update_should_show_leaving(ctx.guild.id)
+        except exc.UpdateError as e:
+            return await ctx.send(e)
+        await ctx.send('I will {}log leaving members in this server'.format('' if r else 'not '))
+
     @commands.command(aliases=["svm"])
     @commands.has_permissions(administrator=True, manage_guild=True)
     async def should_verify(self, ctx):
         """
         Toggle the verification of users in this server.
-        To use the verification system, a verification channel must be set (!.svc)
+        To use the verification system, a verification channel must be set (;svc)
         """
         await ctx.message.delete()
         try:
@@ -169,6 +250,8 @@ class Settings(commands.Cog):
         l = list(args)
         category = l.pop(0)
         message = await ctx.send(messages.create_new_role(category, l, ctx.guild))
+        if not message:
+            return await ctx.send("Error in the command.")
         for idx, r_name in enumerate(l):
             r = discord.utils.get(ctx.guild.roles, name=r_name)
             svc.add_role_to_guild(message.id, r, category, idx)
@@ -186,64 +269,10 @@ class Settings(commands.Cog):
         await ctx.send("Password set.")
 
     async def cog_command_error(self, ctx: discord.ext.commands.Context, error: discord.ext.commands.CommandError):
-        # print(error, traceback.format_exc(limit=5))
         await ctx.bot.get_user(152543367937392640).send("There was an error in the Setting cog:\n"
                                                         "```{}```\n```{}```".format(traceback.format_exc(limit=5),
                                                                                     error))
         svc.increment_retarded_user(ctx.guild.id)
-    # @set_message.error
-    # async def set_message_error(self, ctx, error):
-    #     if isinstance(error, commands.MissingPermissions):
-    #         await ctx.send("You do not have the permissions to use this command")
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await ctx.send("You cannot use this command in DM")
-    #     else:
-    #         await ctx.send(error.args)
-    #
-    # @set_log_channel.error
-    # async def set_log_channel_error(self, ctx, error):
-    #     if isinstance(error, commands.MissingPermissions):
-    #         await ctx.send("You do not have the permissions to use this command")
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await ctx.send("You cannot use this command in DM")
-    #     else:
-    #         await ctx.send(error.args)
-    #
-    # @set_verification_channel.error
-    # async def set_verification_channel_error(self, ctx, error):
-    #     if isinstance(error, commands.MissingPermissions):
-    #         await ctx.send("You do not have the permissions to use this command")
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await ctx.send("You cannot use this command in DM")
-    #     else:
-    #         await ctx.send(error.args)
-    #
-    # @welcome.error
-    # async def welcome_on_error(self, ctx, error):
-    #     if isinstance(error, commands.MissingPermissions):
-    #         await ctx.send("You do not have the permissions to use this command")
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await ctx.send("You cannot use this command in DM")
-    #     else:
-    #         await ctx.send(error.args)
-    #
-    # @save.error
-    # async def save_error(self, ctx, error):
-    #     if isinstance(error, commands.MissingPermissions):
-    #         await ctx.send("You do not have the permissions to use this command")
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await ctx.send("You cannot use this command in DM")
-    #     else:
-    #         await ctx.send(error.args)
-    #
-    # @show_deleted.error
-    # async def show_deleted_error(self, ctx, error):
-    #     if isinstance(error, commands.MissingPermissions):
-    #         await ctx.send("You do not have the permissions to use this command")
-    #     elif isinstance(error, commands.NoPrivateMessage):
-    #         await ctx.send("You cannot use this command in DM")
-    #     else:
-    #         await ctx.send(error.args)
 
 
 def setup(bot):

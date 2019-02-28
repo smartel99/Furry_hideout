@@ -1,8 +1,10 @@
 from datetime import datetime
 
 import discord
+from discord.ext import commands
 
 import Token
+from services import data_service as svc
 
 USER_IS_UNDERAGED = "User {0.author.name} entered a date less than 18 years ago ({0.content})"
 USER_IS_VERIFIED = "You are now verified."
@@ -118,8 +120,79 @@ def create_new_role(category, roles, guild: discord.Guild) -> str:
     for idx, role in enumerate(roles):
         r = discord.utils.get(guild.roles, name=role)
         if not r:
-            return None
+            return ""
         message += f"{idx + 1}.  {role}\n"
     message += "\n< To give yourself your desired role, select the corresponding emoji bellow >"
     message += "\n/* To remove a role you have, remove the corresponding reaction *```"
     return message
+
+
+def create_settings_embed(ctx: discord.ext.commands.Context) -> discord.Embed:
+    bot: commands.Bot = ctx.bot
+    guild: discord.Guild = ctx.guild
+    settings = svc.get_settings_for_guild(guild.id)
+    user: discord.User = ctx.author
+    try:
+        log_channel = guild.get_channel(settings["log_channel"]).name if settings[
+                                                                             "log_channel"] is not None else "No channel set "
+    except KeyError:
+        log_channel = "No channel set"
+    try:
+        verification_channel = guild.get_channel(settings["verification_channel"]).name if settings[
+                                                                                               "verification_channel"] is not None else "No channel set "
+    except KeyError:
+        verification_channel = "No channel set"
+    try:
+        update_channel = guild.get_channel(settings["update_channel"]).name if settings[
+                                                                                   "update_channel"] is not None else "No channel set"
+    except KeyError:
+        update_channel = "No channel set"
+    try:
+        verified_role = svc.get_verified_role_in_guild(guild).mention
+    except AttributeError:
+        verified_role = "No role set"
+
+    welcome_message = settings["welcome_message"] if len(settings["welcome_message"]) <= 50 else settings[
+                                                                                                     "welcome_message"][
+                                                                                                 :49] + "..."
+
+    em = discord.Embed(title=f"Settings in {ctx.guild.name}",
+                       description=f"For {bot.user.name}",
+                       colour=discord.Color.gold(),
+                       url="https://github.com/smartel99/Furry_hideout")
+    em.set_thumbnail(url=guild.icon_url)
+    em.set_author(name=user.name, icon_url=user.avatar_url)
+    em.set_footer(text=bot.user.name, icon_url=bot.user.avatar_url)
+
+    em.add_field(name="Name of the server", value=settings["name"], inline=False)
+    em.add_field(name="Welcome message", value=welcome_message, inline=False)
+    em.add_field(name="Should welcome new members", value=settings["should_welcome_members"], inline=False)
+    em.add_field(name="Log Channel", value=log_channel, inline=False)
+    em.add_field(name="Should Log Deleted Messages", value=settings["should_show_deleted"], inline=False)
+    em.add_field(name="Should Log Edited Messages", value=settings["should_show_edited"], inline=False)
+    em.add_field(name="Should Log Joining Members", value=settings["should_show_joining"], inline=False)
+    em.add_field(name="Should Log Leaving Members", value=settings["should_show_leaving"], inline=False)
+    em.add_field(name="Verification Channel", value=verification_channel, inline=False)
+    em.add_field(name="Verified Role", value=verified_role, inline=False)
+    em.add_field(name="Should Verify Members", value=settings["should_verify"], inline=False)
+    em.add_field(name="Requires Password", value=settings["password"] is None, inline=False)
+    em.add_field(name="Should Save messages and files", value=settings["should_save_messages"], inline=False)
+    em.add_field(name="Update Channel", value=update_channel, inline=False)
+
+    return em
+
+
+def create_member_joined_embed(member: discord.Member) -> discord.Embed:
+    em = discord.Embed(title="Someone joined the server!",
+                       description=member.display_name,
+                       color=discord.Color.purple(),
+                       timestamp=datetime.now())
+    return em
+
+
+def create_member_left_embed(member: discord.Member) -> discord.Embed:
+    em = discord.Embed(title="Someone left the server!",
+                       description=member.display_name,
+                       color=discord.Color.dark_purple(),
+                       timestamp=datetime.now())
+    return em

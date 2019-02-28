@@ -1,3 +1,5 @@
+import json
+
 import discord
 from discord.ext import commands
 
@@ -9,12 +11,15 @@ from services import exceptions
 
 
 def create_default_guild(guild: discord.Guild):
-    g = Guild()
-    g.name = guild.name
-    g.guild_id = guild.id
+    g = get_guild(guild.id)
 
-    g.welcome_message = messages.DEFAULT_WELCOME_MESSAGE.format(guild.name)
-    g.save()
+    if not g:
+        g = Guild()
+        g.name = guild.name
+        g.guild_id = guild.id
+
+        g.welcome_message = messages.DEFAULT_WELCOME_MESSAGE.format(guild.name)
+        g.save()
 
 
 def update_guild_welcome_message(guild: discord.Guild, message) -> str:
@@ -149,14 +154,20 @@ def get_guild(g_id):
 
 
 def set_verified_role_in_guild(role: discord.Role):
-    r = Role()
+    r = get_verified_role_in_guild(role.guild.id)
+
+    if not r:
+        r = Role()
+        g = get_guild(role.guild.id)
+    else:
+        g = None
+
     r.name = role.name
     r.role_id = role.id
     r.category = "verify"
 
     r.save()
 
-    g = get_guild(role.guild.id)
     if g:
         g.roles.append(r.id)
         g.save()
@@ -197,6 +208,8 @@ def get_role_from_payload(payload: discord.RawReactionActionEvent, guild: discor
     r = Role.objects(id__in=g.roles) \
         .filter(message_id=payload.message_id) \
         .filter(reaction=payload.emoji.name).first()
+    if not r:
+        return None
     return guild.get_role(r.role_id)
 
 
@@ -216,3 +229,67 @@ def increment_verified_user(g_id):
 
 def increment_underaged_user(g_id):
     Guild.objects(guild_id=g_id).update_one(inc__underaged_user=1)
+
+
+def update_update_channel_in_guild(g_id, c_id):
+    g = Guild.objects().filter(guild_id=g_id).first()
+    if not g:
+        raise exceptions.UpdateError("Couldn't set the log channel")
+    g.update_channel = c_id
+    g.save()
+
+
+def update_should_show_leaving(g_id) -> bool:
+    g = Guild.objects(guild_id=g_id).first()
+    if not g:
+        raise exceptions.UpdateError("Cannot update should_show_leaving")
+    g.should_show_leaving = not g.should_show_leaving
+    g.save()
+    return g.should_show_leaving
+
+
+def update_should_show_joining(g_id) -> bool:
+    g = Guild.objects(guild_id=g_id).first()
+    if not g:
+        raise exceptions.UpdateError("Cannot update should_show_joining")
+    g.should_show_joining = not g.should_show_joining
+    g.save()
+    return g.should_show_joining
+
+
+def update_should_show_edited(g_id) -> bool:
+    g = Guild.objects(guild_id=g_id).first()
+    if not g:
+        raise exceptions.UpdateError("Cannot update should_show_edited")
+    g.should_show_edited = not g.should_show_edited
+    g.save()
+    return g.should_show_edited
+
+
+def get_settings_for_guild(g_id) -> dict:
+    g = get_guild(g_id)
+    settings = g.to_json()
+    settings = json.loads(settings)
+    return settings
+
+
+def set_settings_to_default_in_guild(g_id):
+    g = get_guild(g_id)
+    if not g:
+        raise exceptions.UpdateError("Cannot set the settings to the default values")
+    g.should_verify = False
+    g.should_show_deleted = False
+    g.should_save_messages = False
+    g.should_welcome_members = True
+    g.should_show_edited = False
+    g.should_show_joining = False
+    g.should_show_leaving = False
+    g.save()
+
+
+def should_show_joining_in_guild(g_id):
+    return Guild.objects(guild_id=g_id).first().should_show_joining
+
+
+def should_show_leaving(g_id):
+    return Guild.objects(guild_id=g_id).first().should_show_leaving

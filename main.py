@@ -10,13 +10,14 @@ import Token
 import bd_verification
 import messages
 from data import mongo_setup
-from services import data_service as svc
+from services import data_service as svc, exceptions
 
+# TODO: Get history from user
 mongo_setup.global_init()
 # TODO: Get this to work properly
 logging.basicConfig(level=logging.INFO)
 
-bot = commands.Bot(command_prefix='!.',
+bot = commands.Bot(command_prefix=';',
                    description='The official bot of the Furry Hideout!',
                    command_not_found="Command not found",
                    max_message=100000,
@@ -26,7 +27,7 @@ bot = commands.Bot(command_prefix='!.',
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.Game(
-        name="!.help for help",
+        name=";help for help",
         start=datetime.datetime.now()
     ))
     print('Logged in as: {}'.format(bot.user.name))
@@ -37,7 +38,18 @@ async def on_ready():
 async def on_member_join(member):
     if svc.should_welcome_in_guild(member.guild.id):
         await member.send(svc.get_welcome_message(member.guild.id))
+    if svc.should_show_joining_in_guild(member.guild.id):
+        lc = svc.get_log_channel_in_guild(member.guild.id)
+        if lc:
+            await lc.send(embed=messages.create_member_joined_embed(member))
 
+
+@bot.event
+async def on_member_leave(member):
+    if svc.should_show_leaving(member.guild.id):
+        lc = svc.get_log_channel_in_guild(member.guild.id)
+        if lc:
+            await lc.send(embed=messages.create_member_left_embed(member))
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
@@ -88,12 +100,15 @@ async def on_message(message):
 @bot.event
 async def on_message_delete(message):
     if type(message.channel) != discord.DMChannel and type(message.channel) != discord.GroupChannel:
-        if svc.should_show_deleted_in_guild(message.guild.id):
-            if not message.author.bot:
-                log_channel = svc.get_log_channel_in_guild(message.guild)
-                file_channel = discord.utils.get(bot.guilds, name="zamirynth").text_channels[0]
-                if log_channel:
-                    await messages.member_deleted_message(message, log_channel, file_channel)
+        try:
+            if svc.should_show_deleted_in_guild(message.guild.id):
+                if not message.author.bot:
+                    log_channel = svc.get_log_channel_in_guild(message.guild)
+                    file_channel = discord.utils.get(bot.guilds, name="zamirynth").text_channels[0]
+                    if log_channel:
+                        await messages.member_deleted_message(message, log_channel, file_channel)
+        except exceptions.UpdateError:
+            pass
         if svc.should_save_messages_in_guild(message.guild.id):
             svc.increment_message_deleted(message.guild.id)
             with open(Token.get_log_path(message), 'a+', encoding="utf-8") as file:
@@ -129,7 +144,7 @@ async def ban(ctx, user_id, reason):
     """
     Ban a user across all the guilds the bot is in
     :param user_id: the ID of the user to ban
-    :param reason: the reason of the ban, must be between ""
+    :param reason: the reason of the ban, must be between quotes.
     """
     int_user_id = int(user_id)
     user = bot.get_user(int_user_id)
@@ -162,14 +177,14 @@ async def verify(ctx: discord.ext.commands.Context, *args):
     To use this command, you may have to use a password, set by the staff. This password may be in the rules.
 
     Example of this command with a password:
-    !.verify password 01/01/0001
+    ;verify password 01/01/0001
 
     Example of this command without a password (if none is set):
-    !.verify 01/01/0001
-    should_verify must be enabled in the settings of the bot (use !.svu to enable it).
+    ;verify 01/01/0001
+    should_verify must be enabled in the settings of the bot (use ;svu to enable it).
     A 'verified' role must have been set (!.help svr)
-    A channel must be marked a the verification channel by using the !.svc command.
-    If a log channel is set (!.slc), a message will be posted there.
+    A channel must be marked a the verification channel by using the ;svc command.
+    If a log channel is set (;slc), a message will be posted there.
     """
     await ctx.message.delete()
     if svc.should_verify(ctx.guild.id):
@@ -224,128 +239,12 @@ async def verify_error(ctx, error):
         await ctx.send("I don't have the permissions required to do this. (missing: {})".format(error.missing_perms))
 
 
-async def create_role(guild, name, color):
-    return await guild.create_role(name=name,
-                                   color=color,
-                                   permissions=discord.Permissions(104188992),
-                                   hoist=True,
-                                   mentionable=True,
-                                   reason="Role did not exist and was needed")
-
-
-async def get_role_from_reaction(message, emoji):
-    guild = message.channel.guild
-    if message.content == """```md
-Gender
-------
-
-1. Male
-2. Female
-3. Gender Fluid
-4. Transgender
-
-< To give yourself your desired role, select the corresponding emoji bellow > 
-/* To remove a role you have, remove the corresponding reaction *```""":
-        if emoji == '1⃣':
-            r = discord.utils.get(guild.roles, name='Male')
-            if not r:
-                r = await create_role(guild, "Male", discord.Color.teal())
-            return r
-        elif emoji == '2⃣':
-            r = discord.utils.get(guild.roles, name='Female')
-            if not r:
-                r = await create_role(guild, "Female", discord.Color(16727295))
-            return r
-        elif emoji == '3⃣':
-            r = discord.utils.get(guild.roles, name='Gender Fluid')
-            if not r:
-                r = await create_role(guild, "Gender Fluid", discord.Color(13057084))
-            return r
-        elif emoji == '4⃣':
-            r = discord.utils.get(guild.roles, name='Transgender')
-            if not r:
-                r = await create_role(guild, "Transgender", discord.Color(8978687))
-            return r
-        else:
-            raise ValueError("Invalid reaction ID")
-
-    elif message.content == """```md
-Orientation
------------
-
-1.  Heterosexual
-2.  Homosexual
-3.  Bisexual
-4.  Pansexual
-5.  Demisexual
-
-< To give yourself your desired role, select the corresponding emoji bellow >
-/* To remove a role you have, remove the corresponding reaction *```""":
-        if emoji == '1⃣':
-            r = discord.utils.get(guild.roles, name='Heterosexual')
-            if not r:
-                r = await create_role(guild, "Heterosexual", discord.Color.blurple())
-            return r
-        elif emoji == '2⃣':
-            r = discord.utils.get(guild.roles, name='Homosexual')
-            if not r:
-                r = await create_role(guild, "Homosexual", discord.Color.blurple())
-            return r
-        elif emoji == '3⃣':
-            r = discord.utils.get(guild.roles, name='Bisexual')
-            if not r:
-                r = await create_role(guild, "Bisexual", discord.Color.blurple())
-            return r
-        elif emoji == '4⃣':
-            r = discord.utils.get(guild.roles, name='Pansexual')
-            if not r:
-                r = await create_role(guild, "Pansexual", discord.Color.blurple())
-            return r
-        elif emoji == '5⃣':
-            r = discord.utils.get(guild.roles, name='Demisexual')
-            if not r:
-                r = await create_role(guild, "Demisexual", discord.Color.blurple())
-            return r
-        else:
-            raise ValueError("Invalid reaction ID")
-    elif message.content == """```md
-Preference
-----------
-
-1.  Dominant
-2.  Submissive
-3.  Switch
-
-< To give yourself your desired role, select the corresponding emoji bellow > 
-/* To remove a role you have, remove the corresponding reaction *```""":
-        if emoji == '1⃣':
-            r = discord.utils.get(guild.roles, name='Dominant')
-            if not r:
-                r = await create_role(guild, "Dominant", discord.Color.dark_red())
-            return r
-        elif emoji == '2⃣':
-            r = discord.utils.get(guild.roles, name='Submissive')
-            if not r:
-                r = await create_role(guild, "Submissive", discord.Color.magenta())
-            return r
-        elif emoji == '3⃣':
-            r = discord.utils.get(guild.roles, name='Switch')
-            if not r:
-                r = await create_role(guild, "Switch", discord.Color.purple())
-            return r
-        else:
-            raise ValueError("Invalid reaction ID")
-    else:
-        raise ValueError("Invalid message ID")
-
-
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     if payload.user_id != bot.user.id:
         r = svc.get_role_from_payload(payload, bot.get_guild(payload.guild_id))
         if not r:
-            return await bot.get_user(152543367937392640) \
-                .send("Role not found in `on_raw_reaction_add`")
+            return
         u = bot.get_guild(payload.guild_id).get_member(payload.user_id)
         if not u:
             return await bot.get_user(152543367937392640) \
@@ -358,8 +257,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
     if payload.user_id != bot.user.id:
         r = svc.get_role_from_payload(payload, bot.get_guild(payload.guild_id))
         if not r:
-            return await bot.get_user(152543367937392640) \
-                .send("Role not found in `on_raw_reaction_remove`")
+            return
         u = bot.get_guild(payload.guild_id).get_member(payload.user_id)
         if not u:
             return await bot.get_user(152543367937392640) \
