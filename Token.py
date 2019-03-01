@@ -42,3 +42,10 @@ def get_logging_file():
     if not os.path.exists(path):
         os.makedirs(path)
     return path + "/bot.log"
+
+
+def get_zip_path():
+    path = os.path.abspath(os.path.join('..', 'FH_data'))
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path + "/user.zip"

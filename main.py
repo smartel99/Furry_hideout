@@ -12,7 +12,8 @@ import messages
 from data import mongo_setup
 from services import data_service as svc, exceptions
 
-# TODO: Get history from user
+# TODO: Load moderation cog
+# TODO: Make the code compliant wit Discord dev ToS
 mongo_setup.global_init()
 # TODO: Get this to work properly
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +37,7 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    if svc.should_welcome_in_guild(member.guild.id):
+    if svc.should_welcome_in_guild(member.guild):
         await member.send(svc.get_welcome_message(member.guild.id))
     if svc.should_show_joining_in_guild(member.guild.id):
         lc = svc.get_log_channel_in_guild(member.guild.id)
@@ -46,10 +47,11 @@ async def on_member_join(member):
 
 @bot.event
 async def on_member_leave(member):
-    if svc.should_show_leaving(member.guild.id):
+    if svc.should_show_leaving(member.guild):
         lc = svc.get_log_channel_in_guild(member.guild.id)
         if lc:
             await lc.send(embed=messages.create_member_left_embed(member))
+
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
@@ -139,38 +141,6 @@ async def on_message_edit(b, a):
 
 
 @bot.command(pass_context=True)
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, user_id, reason):
-    """
-    Ban a user across all the guilds the bot is in
-    :param user_id: the ID of the user to ban
-    :param reason: the reason of the ban, must be between quotes.
-    """
-    int_user_id = int(user_id)
-    user = bot.get_user(int_user_id)
-    for guild in bot.guilds:
-        log_channel = svc.get_log_channel_in_guild(guild)
-        if not log_channel:
-            pass
-        else:
-            await log_channel.send("Banning user '{0}' with reason '{1}'. The ban was put in place by {"
-                                   "2.message.author.name} in the guild '{2.guild.name}'".format(user, reason, ctx))
-        try:
-            await guild.ban(user, reason=reason, delete_message_days=7)
-        except Exception as e:
-            await ctx.send("User not found in {}".format(guild.name))
-
-
-@ban.error
-async def ban_error(ctx, error):
-    svc.increment_retarded_user(ctx.guild.id)
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("You do not have the permissions to use this command")
-    else:
-        await ctx.send(error.args)
-
-
-@bot.command(pass_context=True)
 async def verify(ctx: discord.ext.commands.Context, *args):
     """
     To verify yourself in the server using your date of birth.
@@ -182,7 +152,7 @@ async def verify(ctx: discord.ext.commands.Context, *args):
     Example of this command without a password (if none is set):
     ;verify 01/01/0001
     should_verify must be enabled in the settings of the bot (use ;svu to enable it).
-    A 'verified' role must have been set (!.help svr)
+    A 'verified' role must have been set (;help svr)
     A channel must be marked a the verification channel by using the ;svc command.
     If a log channel is set (;slc), a message will be posted there.
     """
@@ -266,8 +236,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 
 
 def main():
-    extensions = ['cogs.secrets',
-                  'cogs.settings',
+    extensions = ['cogs.settings',
                   ]
     for e in extensions:
         try:

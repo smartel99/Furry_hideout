@@ -35,7 +35,10 @@ def update_guild_welcome_message(guild: discord.Guild, message) -> str:
 
 
 def get_welcome_message(g_id: int) -> str:
-    return Guild.objects().filter(guild_id=g_id).first().welcome_message
+    g = get_guild(g_id)
+    if not g:
+        return ""
+    return g.welcome_message
 
 
 def update_should_welcome(g_id) -> bool:
@@ -49,6 +52,8 @@ def update_should_welcome(g_id) -> bool:
 
 def should_welcome_in_guild(g_id) -> bool:
     g = Guild.objects().filter(guild_id=g_id).first()
+    if not g:
+        return False
     return g.should_welcome_members
 
 
@@ -63,6 +68,8 @@ def update_should_save_messages(g_id) -> bool:
 
 def should_save_messages_in_guild(g_id) -> bool:
     g = Guild.objects().filter(guild_id=g_id).first()
+    if not g:
+        return False
     return g.should_save_messages
 
 
@@ -129,11 +136,17 @@ def increment_message_edited(g_id: discord.Guild.id):
 
 
 def should_show_edited_in_guild(g_id: discord.Guild.id) -> bool:
-    return Guild.objects(guild_id=g_id).first().should_show_edited
+    g = get_guild(g_id)
+    if not g:
+        return False
+    return g.should_show_edited
 
 
 def should_verify(g_id: discord.Guild.id) -> bool:
-    return Guild.objects(guild_id=g_id).first().should_verify
+    g = get_guild(g_id)
+    if not g:
+        return False
+    return g.should_verify
 
 
 def channel_is_verification(ctx: discord.ext.commands.Context) -> bool:
@@ -288,8 +301,14 @@ def set_settings_to_default_in_guild(g_id):
 
 
 def should_show_joining_in_guild(g_id):
-    return Guild.objects(guild_id=g_id).first().should_show_joining
+    g = get_guild(g_id)
+    if not g:
+        return False
+    return g.should_show_joining
 
 
 def should_show_leaving(g_id):
-    return Guild.objects(guild_id=g_id).first().should_show_leaving
+    g = get_guild(g_id)
+    if not g:
+        return False
+    return g.should_show_leaving
