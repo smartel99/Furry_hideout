@@ -1,6 +1,8 @@
 import logging
+import random
+import string
+import subprocess
 import traceback
-from zipfile import ZipFile
 
 import discord
 from discord.ext import commands
@@ -52,6 +54,7 @@ class Moderation(commands.Cog):
             except Exception as e:
                 await ctx.send("User not found in {}".format(guild.name))
 
+    # TODO: Make the zip file reset each time
     @commands.command(aliases=["gf"])
     @commands.has_permissions(administrator=True)
     async def get_file(self, ctx: commands.Context, user_id: int):
@@ -60,13 +63,19 @@ class Moderation(commands.Cog):
         If the file is over 8MB, only the text history will be sent.
         """
         try:
-            user: discord.User = ctx.bot.get_user_info(user_id)
+            user: discord.User = await ctx.bot.get_user_info(user_id)
         except discord.NotFound:
             return await ctx.send("A user with this ID does not exist")
         except discord.HTTPException:
             return await ctx.send("Fetching the user failed")
-        with ZipFile(Token.get_zip_path, 'w') as myzip:
-            pass
+        files = Token.get_files_in_user_folder(user.name, ctx.guild.name)
+        password = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(8))
+        if not files:
+            return await ctx.send(f"Couldn't find any data on user {user.name}")
+        rc = subprocess.call(['C:/Program Files/7-Zip/7z', 'a', '-p' + password, Token.get_zip_path(), '-mx9'] + files)
+        await ctx.author.send(f"Here is the password for the zip file: `{password}`")
+        await ctx.send(f"Here is the requested file {ctx.author.mention}", file=discord.File(fp=Token.get_zip_path(),
+                                                                                             filename="user.zip"))
 
 
 def setup(bot):

@@ -13,13 +13,12 @@ from data import mongo_setup
 from services import data_service as svc, exceptions
 
 # TODO: Load moderation cog
-# TODO: Make the code compliant wit Discord dev ToS
 mongo_setup.global_init()
 # TODO: Get this to work properly
 logging.basicConfig(level=logging.INFO)
 
 bot = commands.Bot(command_prefix=';',
-                   description='The official bot of the Furry Hideout!',
+                   description='The friendly helping dragon! ^w^',
                    command_not_found="Command not found",
                    max_message=100000,
                    case_insensitive=True)
@@ -68,9 +67,6 @@ async def on_error(event, *args, **kwargs):
 @bot.event
 async def on_command_error(ctx, error):
     svc.increment_retarded_user(ctx.guild.id)
-    if isinstance(error, commands.CommandNotFound):
-        await ctx.message.delete()
-        await ctx.send(error)
 
 
 async def create_invite_with_exc_msg(e, channel):
@@ -100,7 +96,7 @@ async def on_message(message):
 
 
 @bot.event
-async def on_message_delete(message):
+async def on_message_delete(message: discord.Message):
     if type(message.channel) != discord.DMChannel and type(message.channel) != discord.GroupChannel:
         try:
             if svc.should_show_deleted_in_guild(message.guild.id):
@@ -138,12 +134,14 @@ async def on_message_edit(b, a):
                     file.write(messages.USER_FILE_INFO.format(a.author))
                 file.seek(0)
                 file.write(messages.USER_MESSAGE_EDITED_TO_LOG.format(b, a))
+    await bot.process_commands(a)
 
 
 @bot.command(pass_context=True)
 async def verify(ctx: discord.ext.commands.Context, *args):
     """
     To verify yourself in the server using your date of birth.
+    By using this command, you are giving consent to the recording of messages and files sent by you in this server.
     To use this command, you may have to use a password, set by the staff. This password may be in the rules.
 
     Example of this command with a password:
@@ -151,6 +149,7 @@ async def verify(ctx: discord.ext.commands.Context, *args):
 
     Example of this command without a password (if none is set):
     ;verify 01/01/0001
+
     should_verify must be enabled in the settings of the bot (use ;svu to enable it).
     A 'verified' role must have been set (;help svr)
     A channel must be marked a the verification channel by using the ;svc command.
@@ -165,16 +164,19 @@ async def verify(ctx: discord.ext.commands.Context, *args):
             log_channel = svc.get_log_channel_in_guild(ctx.guild)
             password = svc.get_password_in_guild(ctx.guild.id)
             if password:
-                if len(args) != 2:
-                    return await ctx.send("Missing/Too many arguments, please make sure you include all arguments in "
-                                          "the command")
+                if len(args) < 2:
+                    return await ctx.send("Missing arguments. Have you put the password and your date of birth?")
+                elif len(args) > 2:
+                    return await ctx.send("Too many arguments. Do `;help verify` to learn how to use this command")
                 dob = 1
                 if args[0] != password:
                     return await ctx.send("Password invalid")
             else:
-                if len(args) != 1:
-                    return await ctx.send("Missing/Too many arguments, please make sure you include all arguments in "
-                                          "the command")
+                if len(args) < 1:
+                    return await ctx.send("Missing arguments. Have you put your date of birth?")
+                elif len(args) > 1:
+                    return await ctx.send("Too many arguments. You do not need to use a password, just put your date "
+                                          "of birth in the `DD/MM/YYYY` format")
                 dob = 0
             try:
                 bd_verification.verify_birthday(args[dob])
@@ -237,6 +239,7 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 
 def main():
     extensions = ['cogs.settings',
+                  'cogs.moderations'
                   ]
     for e in extensions:
         try:
