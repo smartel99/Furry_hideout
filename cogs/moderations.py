@@ -75,6 +75,7 @@ class Moderation(commands.Cog):
             rc = subprocess.call(
                 ['C:/Program Files/7-Zip/7z', 'a', '-p' + password, Token.get_zip_path(), '-mx9'] + files)
             if os.stat(Token.get_zip_path()).st_size >= 8388608:
+                os.remove(Token.get_zip_path())
                 rc = subprocess.call(
                     ['C:/Program Files/7-Zip/7z', 'a', '-p' + password, Token.get_zip_path(), '-mx9'] +
                     [Token.get_log_path(ctx.message)])
