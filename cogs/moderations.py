@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import string
 import subprocess
@@ -13,8 +14,6 @@ from services import data_service as svc
 
 # TODO: Kick command
 # TODO: Report command
-# TODO: Get file from user
-# Was at getting all the files for a user
 
 
 class Moderation(commands.Cog):
@@ -47,6 +46,7 @@ class Moderation(commands.Cog):
             if not log_channel:
                 pass
             else:
+                # noinspection PyStringFormat
                 await log_channel.send("Banning user '{0}' with reason '{1}'. The ban was put in place by {"
                                        "2.author.name} in the guild '{2.guild.name}'".format(user, reason, ctx))
             try:
@@ -54,9 +54,8 @@ class Moderation(commands.Cog):
             except Exception as e:
                 await ctx.send("User not found in {}".format(guild.name))
 
-    # TODO: Make the zip file reset each time
     @commands.command(aliases=["gf"])
-    @commands.has_permissions(administrator=True)
+    @commands.has_permissions(kick_members=True, ban_members=True)
     async def get_file(self, ctx: commands.Context, user_id: int):
         """
         Get the file record of a user as a zip file.
@@ -68,14 +67,31 @@ class Moderation(commands.Cog):
             return await ctx.send("A user with this ID does not exist")
         except discord.HTTPException:
             return await ctx.send("Fetching the user failed")
-        files = Token.get_files_in_user_folder(user.name, ctx.guild.name)
-        password = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(8))
-        if not files:
-            return await ctx.send(f"Couldn't find any data on user {user.name}")
-        rc = subprocess.call(['C:/Program Files/7-Zip/7z', 'a', '-p' + password, Token.get_zip_path(), '-mx9'] + files)
-        await ctx.author.send(f"Here is the password for the zip file: `{password}`")
-        await ctx.send(f"Here is the requested file {ctx.author.mention}", file=discord.File(fp=Token.get_zip_path(),
-                                                                                             filename="user.zip"))
+        async with ctx.channel.typing():
+            files = Token.get_files_in_user_folder(user.name, ctx.guild.name)
+            password = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(8))
+            if not files:
+                return await ctx.send(f"Couldn't find any data on user {user.name}")
+            rc = subprocess.call(
+                ['C:/Program Files/7-Zip/7z', 'a', '-p' + password, Token.get_zip_path(), '-mx9'] + files)
+            if os.stat(Token.get_zip_path()).st_size >= 8388608:
+                rc = subprocess.call(
+                    ['C:/Program Files/7-Zip/7z', 'a', '-p' + password, Token.get_zip_path(), '-mx9'] +
+                    [Token.get_log_path(ctx.message)])
+            try:
+                await ctx.author.send(f"Here is the password for the zip file: `{password}`")
+                await ctx.send(f"Here is the requested file, the password was sent in your dms {ctx.author.mention}. "
+                               f"This message will be deleted in 5 minutes.",
+                               file=discord.File(fp=Token.get_zip_path(),
+                                                 filename="user.zip"),
+                               delete_after=300)
+            except discord.Forbidden:
+                await ctx.send(f"Couldn't send the password to your dms {ctx.author.mention}. "
+                               f"Make sure that your privacy settings allows members of this server to send you "
+                               f"private messages")
+            except discord.InvalidArgument:
+                await ctx.send("The files list is not of the appropriate size or you specified both file and files.")
+            os.remove(Token.get_zip_path())
 
 
 def setup(bot):

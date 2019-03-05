@@ -10,9 +10,6 @@ from services import data_service as svc
 from services import exceptions as exc
 
 
-# Things left to do:
-
-
 class Settings(commands.Cog):
     """
     The setting commands for this guild.

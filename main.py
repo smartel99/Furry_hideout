@@ -12,7 +12,6 @@ import messages
 from data import mongo_setup
 from services import data_service as svc, exceptions
 
-# TODO: Load moderation cog
 mongo_setup.global_init()
 # TODO: Get this to work properly
 logging.basicConfig(level=logging.INFO)
