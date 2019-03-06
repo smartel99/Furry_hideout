@@ -187,6 +187,7 @@ def create_member_joined_embed(member: discord.Member) -> discord.Embed:
                        description=member.display_name,
                        color=discord.Color.purple(),
                        timestamp=datetime.now())
+    em.set_thumbnail(url=member.avatar_url)
     return em
 
 
@@ -195,4 +196,5 @@ def create_member_left_embed(member: discord.Member) -> discord.Embed:
                        description=member.display_name,
                        color=discord.Color.dark_purple(),
                        timestamp=datetime.now())
+    em.set_thumbnail(url=member.avatar_url)
     return em

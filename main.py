@@ -35,18 +35,18 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    if svc.should_welcome_in_guild(member.guild):
+    if svc.should_welcome_in_guild(member.guild.id):
         await member.send(svc.get_welcome_message(member.guild.id))
     if svc.should_show_joining_in_guild(member.guild.id):
-        lc = svc.get_log_channel_in_guild(member.guild.id)
+        lc = svc.get_log_channel_in_guild(member.guild)
         if lc:
             await lc.send(embed=messages.create_member_joined_embed(member))
 
 
 @bot.event
-async def on_member_leave(member):
-    if svc.should_show_leaving(member.guild):
-        lc = svc.get_log_channel_in_guild(member.guild.id)
+async def on_member_remove(member):
+    if svc.should_show_leaving(member.guild.id):
+        lc = svc.get_log_channel_in_guild(member.guild)
         if lc:
             await lc.send(embed=messages.create_member_left_embed(member))
 
