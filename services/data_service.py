@@ -158,7 +158,8 @@ def get_verified_role_in_guild(guild: discord.Guild) -> discord.Role:
     r = Role.objects(id__in=g.roles) \
         .filter(category="verify") \
         .first()
-
+    if not r:
+        return None
     return guild.get_role(r.role_id)
 
 
