@@ -167,7 +167,7 @@ def get_guild(g_id):
 
 
 def set_verified_role_in_guild(role: discord.Role):
-    r = get_verified_role_in_guild(role.guild.id)
+    r = get_verified_role_in_guild(role.guild)
 
     if not r:
         r = Role()
