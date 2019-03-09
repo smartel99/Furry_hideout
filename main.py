@@ -208,6 +208,8 @@ async def verify_error(ctx, error):
         await ctx.send("Missing arguments, please make sure you include all arguments in the command")
     elif isinstance(error, commands.BotMissingPermissions):
         await ctx.send("I don't have the permissions required to do this. (missing: {})".format(error.missing_perms))
+    else:
+        await ctx.send("There was an unexpected error")
 
 
 @bot.event
