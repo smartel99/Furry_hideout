@@ -13,7 +13,7 @@ def get_token():
 
 
 def get_log_path(message):
-    author = message.author.name.replace(".", "").replace("/", "").replece("\\", "")
+    author = message.author.name.replace(".", "").replace("/", "").replace("\\", "")
     path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, author))
     if not os.path.exists(path):
         os.makedirs(path)
@@ -23,7 +23,7 @@ def get_log_path(message):
 
 
 def get_attachment_file_path(message, a):
-    author = message.author.name.replace(".", "").replace("/", "").replece("\\", "")
+    author = message.author.name.replace(".", "").replace("/", "").replace("\\", "")
     path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, author))
     if not os.path.exists(path):
         os.makedirs(path)
@@ -54,7 +54,7 @@ def get_zip_path():
 
 
 def get_user_folder(user_name, guild_name):
-    author = user_name.replace(".", "").replace("/", "").replece("\\", "")
+    author = user_name.replace(".", "").replace("/", "").replace("\\", "")
     path = os.path.abspath(os.path.join('..', 'FH_data', guild_name, author))
     if not os.path.exists(path):
         return None
