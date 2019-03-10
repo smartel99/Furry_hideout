@@ -1,0 +1,12 @@
+Metadata-Version: 1.1
+Name: esto
+Version: 0.0.9
+Summary: An easy-to-use e621 API wrapper.
+Home-page: https://github.com/silicWulf/esto
+Author: silicWulf
+Author-email: me@siliconwolf.pw
+License: UNKNOWN
+Download-URL: https://github.com/silicWulf/esto/tarball/0.0.1
+Description: UNKNOWN
+Keywords: api,e621,esto,wrapper
+Platform: UNKNOWN
