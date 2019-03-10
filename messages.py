@@ -122,8 +122,8 @@ def create_new_role(category, roles, guild: discord.Guild) -> str:
         if not r:
             return ""
         message += f"{idx + 1}.  {role}\n"
-    # message += "\n< To give yourself your desired role, select the corresponding emoji bellow >"
-    # message += "\n/* To remove a role you have, remove the corresponding reaction *```"
+    message += "\n< To give yourself your desired role, select the corresponding emoji bellow >"
+    message += "\n/* To remove a role you have, remove the corresponding reaction *```"
     return message
 
 

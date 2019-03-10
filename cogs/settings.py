@@ -250,11 +250,11 @@ class Settings(commands.Cog):
         if not message:
             return await ctx.send("Error in the command. Make sure that the roles you want to add already exists in "
                                   "the server")
-        await ctx.send(message)
+        new_m = await ctx.send(message)
         for idx, r_name in enumerate(l):
             r = discord.utils.get(ctx.guild.roles, name=r_name)
-            svc.add_role_to_guild(message.id, r, category, idx)
-            await message.add_reaction(reactions.REACTIONS[idx])
+            svc.add_role_to_guild(new_m.id, r, category, idx)
+            await new_m.add_reaction(reactions.REACTIONS[idx])
 
     @commands.command(aliases=["spw"])
     @commands.has_permissions(administrator=True, manage_guild=True)
