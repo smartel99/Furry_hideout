@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import discord
+import esto
 from discord.ext import commands
 
 import Token
@@ -41,7 +42,7 @@ To view what I can do, use the command `!.help`!"""
 def member_is_underaged(message, date_of_birth):
     em = discord.Embed(title="User is underaged",
                        description=message.author.name,
-                       timestamp=datetime.now(),
+                       timestamp=datetime.utcnow(),
                        colour=discord.Color.red())
     em.add_field(name="Birthday", value=date_of_birth)
     em.add_field(name="Joined Discord", value=message.author.created_at)
@@ -52,7 +53,7 @@ def member_is_underaged(message, date_of_birth):
 def member_is_verified(message: discord.Message, date_of_birth: str) -> discord.Embed:
     em = discord.Embed(title="Verified user",
                        description=message.author.name,
-                       timestamp=datetime.now(),
+                       timestamp=datetime.utcnow(),
                        colour=discord.Color.red())
     em.add_field(name="Birthday", value=date_of_birth)
     em.add_field(name="Joined Discord", value=message.author.created_at)
@@ -187,7 +188,7 @@ def create_member_joined_embed(member: discord.Member) -> discord.Embed:
     em = discord.Embed(title="Someone joined the server!",
                        description=member.display_name,
                        color=discord.Color.purple(),
-                       timestamp=datetime.now())
+                       timestamp=datetime.utcnow())
     em.set_thumbnail(url=member.avatar_url)
     return em
 
@@ -196,6 +197,22 @@ def create_member_left_embed(member: discord.Member) -> discord.Embed:
     em = discord.Embed(title="Someone left the server!",
                        description=member.display_name,
                        color=discord.Color.dark_purple(),
-                       timestamp=datetime.now())
+                       timestamp=datetime.utcnow())
     em.set_thumbnail(url=member.avatar_url)
+    return em
+
+
+def create_post_not_found_embed(ctx: commands.Context, args):
+    em = discord.Embed(title="No posts were found",
+                       description="\U00002800",
+                       color=discord.Color.blue())
+    em.add_field(name="No post with those tags was found", value=args)
+    em.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
+    return em
+
+
+def create_embed_from_e6(ctx: commands.Context, e6_file: esto.e621Post) -> discord.Embed:
+    em = discord.Embed(title="Here is what I found",
+                       description="yes")
+
     return em

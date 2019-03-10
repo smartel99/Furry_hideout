@@ -240,7 +240,8 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 
 def main():
     extensions = ['cogs.settings',
-                  'cogs.moderations'
+                  'cogs.moderations',
+                  'cogs.fun_stuff'
                   ]
     for e in extensions:
         try:
