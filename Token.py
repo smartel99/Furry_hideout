@@ -1,4 +1,5 @@
 import os
+import re
 
 
 def get_token_file():
@@ -12,8 +13,12 @@ def get_token():
     return token
 
 
+def clean_author_name(name):
+    return str(re.sub("[^\w\-_\. ]", '_', str(name)))
+
+
 def get_log_path(message):
-    author = message.author.name.replace(".", "").replace("/", "").replace("\\", "")
+    author = clean_author_name(message.author)
     path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, author))
     if not os.path.exists(path):
         os.makedirs(path)
@@ -23,7 +28,7 @@ def get_log_path(message):
 
 
 def get_attachment_file_path(message, a):
-    author = message.author.name.replace(".", "").replace("/", "").replace("\\", "")
+    author = clean_author_name(message.author)
     path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, author))
     if not os.path.exists(path):
         os.makedirs(path)
@@ -54,7 +59,7 @@ def get_zip_path():
 
 
 def get_user_folder(user_name, guild_name):
-    author = user_name.replace(".", "").replace("/", "").replace("\\", "")
+    author = clean_author_name(user_name)
     path = os.path.abspath(os.path.join('..', 'FH_data', guild_name, author))
     if not os.path.exists(path):
         return None
