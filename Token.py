@@ -3,7 +3,7 @@ import re
 
 
 def get_token_file():
-    return os.path.abspath(os.path.join('..', 'FH_data', 'bot.token'))
+    return os.path.abspath(os.path.join('bot.token'))
 
 
 def get_token():
@@ -19,20 +19,20 @@ def clean_author_name(name):
 
 def get_log_path(message):
     author = clean_author_name(message.author)
-    path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, author))
+    path = os.path.abspath(os.path.join('usr_data', message.guild.name, author))
     if not os.path.exists(path):
         os.makedirs(path)
-    return os.path.abspath(os.path.join('..', 'FH_data', message.guild.name,
+    return os.path.abspath(os.path.join('usr_data', message.guild.name,
                                         author,
                                         author + ".user"))
 
 
 def get_attachment_file_path(message, a):
     author = clean_author_name(message.author)
-    path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name, author))
+    path = os.path.abspath(os.path.join('usr_data', message.guild.name, author))
     if not os.path.exists(path):
         os.makedirs(path)
-    path = os.path.abspath(os.path.join('..', 'FH_data', message.guild.name,
+    path = os.path.abspath(os.path.join('usr_data', message.guild.name,
                                         author,
                                         "attachment_{}.".format(str(a.id) + "." + get_file_type(a.url))))
     return path
@@ -45,14 +45,14 @@ def get_file_type(url):
 
 
 def get_logging_file():
-    path = os.path.abspath(os.path.join('..', 'FH_data'))
+    path = os.path.abspath(os.path.join('usr_data'))
     if not os.path.exists(path):
         os.makedirs(path)
     return path + "/bot.log"
 
 
 def get_zip_path():
-    path = os.path.abspath(os.path.join('..', 'FH_data'))
+    path = os.path.abspath(os.path.join('usr_data'))
     if not os.path.exists(path):
         os.makedirs(path)
     return path + "/user.zip"
@@ -60,7 +60,7 @@ def get_zip_path():
 
 def get_user_folder(user_name, guild_name):
     author = clean_author_name(user_name)
-    path = os.path.abspath(os.path.join('..', 'FH_data', guild_name, author))
+    path = os.path.abspath(os.path.join('usr_data', guild_name, author))
     if not os.path.exists(path):
         return None
     else:
